@@ -9,7 +9,8 @@
 #include <imgui.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
-#include "../Globals.h"
+#include "Globals.h"
+
 
 GLuint CreateProgramFromSource(String programSource, const char* shaderName)
 {
@@ -99,6 +100,28 @@ u32 LoadProgram(App* app, const char* filepath, const char* programName)
     program.filepath = filepath;
     program.programName = programName;
     program.lastWriteTimestamp = GetFileLastWriteTimestamp(filepath);
+    
+    GLint attributeCount = 0;
+    glGetProgramiv(program.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
+
+    for (GLuint i = 0; i < attributeCount; i++)
+    {
+        GLsizei buffSize = 256;
+        GLsizei length = 0;
+        GLint size = 0;
+        GLenum type = 0;
+        GLchar name[256];
+
+        glGetActiveAttrib(program.handle, i, ARRAY_COUNT(name),
+            &length,
+            &size,
+            &type,
+            name);
+
+        GLint location = glGetAttribLocation(program.handle, name);
+        program.shaderLayout.attributes.push_back(ModelLoader::VertexShaderAttribute{location, (u8)size});
+    }
+
     app->programs.push_back(program);
 
     return app->programs.size() - 1;
@@ -214,6 +237,11 @@ void Init(App* app)
 
     app->diceTexIdx = LoadTexture2D(app, "dice.png");
 
+    ModelLoader::VertexBufferLayout vertexBufferLayout = {};
+    vertexBufferLayout.attributes.push_back(ModelLoader::VertexBufferAttribute{0, 3, 0});
+    vertexBufferLayout.attributes.push_back(ModelLoader::VertexBufferAttribute{2, 2, 3 * sizeof(float)});
+    vertexBufferLayout.stride = 5 * sizeof(float);
+
     app->mode = Mode_TexturedQuad;
 }
 
@@ -236,20 +264,10 @@ void Render(App* app)
     {
         case Mode_TexturedQuad:
             {
-                // TODO: Draw your textured quad here!
-                // - clear the framebuffer
-                // - set the viewport
-                // - set the blending state
-                // - bind the texture into unit 0
-                // - bind the program 
-                //   (...and make its texture sample from unit 0)
-                // - bind the vao
-                // - glDrawElements() !!!
-
                 glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-                glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+                /*glViewport(0, 0, app->displaySize.x, app->displaySize.y);
 
                 const Program& texturedGeometryProgram = app->programs[app->texturedGeometryProgramIdx];
                 glUseProgram(texturedGeometryProgram.handle);
@@ -266,7 +284,24 @@ void Render(App* app)
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
                 glBindVertexArray(0);
-                glUseProgram(0);
+                glUseProgram(0);*/
+
+                glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+                
+                const Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
+                glUseProgram(texturedMeshProgram.handle);
+
+                Model& model = app->models[app->patricioModel];
+                Mesh& mesh = app->meshes[model.meshIdx]
+
+                for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+                {
+                    GLuint vao = FindVAO(mesh, i, texturedMeshProgram);
+                    glBindVertexArray(vao);
+
+                    u32 subMeshmaterialIdx = model.materialIdx[i];
+                    Material& subM
+                }
 
             }
             break;

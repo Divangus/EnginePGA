@@ -12,6 +12,15 @@ u32 Align(u32 value, u32 alignment)
     return (value + alignment - 1) & ~(alignment - 1);
 }
 
+
+struct Buffer {
+    GLsizei size;
+    GLenum type;
+    GLuint handle;
+    u8* data;
+    u32 head;
+};
+
 Buffer CreateBuffer(u32 size, GLenum type, GLenum usage)
 {
     Buffer buffer = {};

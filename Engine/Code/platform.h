@@ -12,7 +12,7 @@
 #include <math.h>
 #include <vector>
 #include <string>
-#include "../Globals.h"
+#include "Globals.h"
 
 
 String MakeString(const char *cstr);
