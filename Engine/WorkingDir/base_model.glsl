@@ -8,6 +8,8 @@ layout(location = 2) in vec2 aTexCoord;
 //layout(location = 3) in vec3 aTangent;
 //layout(location = 4) in vec3 aBitangent;
 
+uniform mat4 WVP;
+
 out vec2 vTexCoord;
 
 void main()
@@ -16,8 +18,7 @@ void main()
 
 	float clippingScale = 5.0;
 
-	gl_Position = vec4(aPosition, clippingScale);
-	gl_Position.z = -gl_Position.z;
+	gl_Position = WVP * vec4(aPosition, clippingScale);
 }
 
 #elif defined(FRAGMENT) ///////////////////////////////////////////////
