@@ -51,6 +51,12 @@
     <ClCompile Include="ThirdParty\stb\stb.cpp">
       <Filter>Stb</Filter>
     </ClCompile>
+    <ClCompile Include="Code\BufferSupFuncs.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\ModelLoadingFuncs.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThirdParty\imgui-docking\imconfig.h">
@@ -92,13 +98,13 @@
     <ClInclude Include="ThirdParty\stb\stb_image.h">
       <Filter>Stb</Filter>
     </ClInclude>
-    <ClInclude Include="Code\BufferSupFunc.h">
+    <ClInclude Include="Code\BufferSupFuncs.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="Code\Globals.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="Code\ModelLoadingFunctions.h">
+    <ClInclude Include="Code\ModelLoadingFuncs.h">
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>

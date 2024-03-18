@@ -5,92 +5,11 @@
 #pragma once
 
 #include "platform.h"
+#include "BufferSupFuncs.h"
+#include "ModelLoadingFuncs.h"
 #include "Globals.h"
-#include "ModelLoadingFunctions.h"
 
-
-typedef glm::vec2  vec2;
-typedef glm::vec3  vec3;
-typedef glm::vec4  vec4;
-typedef glm::ivec2 ivec2;
-typedef glm::ivec3 ivec3;
-typedef glm::ivec4 ivec4;
-
-struct Image
-{
-    void* pixels;
-    ivec2 size;
-    i32   nchannels;
-    i32   stride;
-};
-
-struct Texture
-{
-    GLuint      handle;
-    std::string filepath;
-};
-
-struct Program
-{
-    GLuint             handle;
-    std::string        filepath;
-    std::string        programName;
-    u64                lastWriteTimestamp; // What is this for?
-    ModelLoader::VertexShaderLayout shaderLayout;
-};
-
-struct Model
-{
-    ModelLoader::VertexBufferLayout vertexBufferLayout;
-    std::vector<u32> vertices;
-    std::vector<u32> indices;
-    u32 vertexOffset;
-    u32 indexOffset;
-
-    std::vector<ModelLoader::VAO> vaos;
-};
-
-struct SubMesh
-{
-    u32 meshIdx;
-    std::vector<float> vertices;
-};
-
-struct Mesh
-{
-    std::vector<SubMesh>    submeshes;
-    GLuint                  vertexBufferHandle;
-    GLuint                  indexBufferHandle;
-};
-
-struct Material
-{
-    std::string     name;
-    vec3            albedo;
-    vec3            emissive;
-    f32             smoothness;
-    u32             albedoTextureIdx;
-    u32             emissiveTextureIdx;
-    u32             specularTextureIdx;
-    u32             normalsTextureIdx;
-    u32             bumpTextureIdx;
-
-};
-
-enum Mode
-{
-    Mode_TexturedQuad,
-    Mode_Count
-};
-
-struct VertexV3V2
-{
-    glm::vec3 pos;
-    glm::vec2 uv;
-};
-
-const VertexV3V2 vertices[] = 
-{
+const VertexV3V2 vertices[] = {
     {glm::vec3(-0.5,-0.5,0.0), glm::vec2(0.0,0.0)},
     {glm::vec3(0.5,-0.5,0.0), glm::vec2(1.0,0.0)},
     {glm::vec3(0.5,0.5,0.0), glm::vec2(1.0,1.0)},
@@ -118,16 +37,18 @@ struct App
 
     ivec2 displaySize;
 
-    std::vector<Texture>  textures;
-    std::vector<Material>  materials;
-    std::vector<Mesh>  meshes;
-    std::vector<Model>  models;
-    std::vector<Program>  programs;
+    std::vector<Texture>    textures;
+    std::vector<Material>   materials;
+    std::vector<Mesh>       meshes;
+    std::vector<Model>      models;
+    std::vector<Program>    programs;
 
     // program indices
     u32 texturedGeometryProgramIdx = 0;
     u32 texturedMeshProgramIdx = 0;
+
     u32 patricioModel = 0;
+    GLuint texturedMeshProgram_uTexture;
     
     // texture indices
     u32 diceTexIdx;
@@ -149,6 +70,8 @@ struct App
 
     // VAO object to link our screen filling quad with our textured quad shader
     GLuint vao;
+
+    std::string openglDebugInfo;
 };
 
 void Init(App* app);
