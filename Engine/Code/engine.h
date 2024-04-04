@@ -5,8 +5,8 @@
 #pragma once
 
 #include "platform.h"
-#include "BufferSupFuncs.h"
-#include "ModelLoadingFuncs.h"
+#include "BufferSuppFunctions.h"
+#include "ModelLoadingFunctions.h"
 #include "Globals.h"
 
 const VertexV3V2 vertices[] = {
@@ -24,6 +24,9 @@ const u16 indices[] =
 
 struct App
 {
+
+    void UpdateEntityBuffer();
+
     // Loop
     f32  deltaTime;
     bool isRunning;
@@ -72,6 +75,12 @@ struct App
     GLuint vao;
 
     std::string openglDebugInfo;
+
+    GLint maxUniformBufferSize;
+    GLint uniformBlockAlignment; //Alignment between uniform BLOCKS!!!!
+    Buffer localUniformBuffer;
+    std::vector<Entity> entities;
+
 };
 
 void Init(App* app);

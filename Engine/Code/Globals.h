@@ -174,10 +174,18 @@ struct Buffer {
     u32 head;
 };
 
+struct Entity 
+{
+    glm::mat4 worldMatrix;
+    u32 modelIndex;
+    u32 localParamsOffset;
+    u32 localParamsSize;
+};
+
 #define ILOG(...)                 \
 {                                 \
 char logBuffer[1024] = {};        \
-sprintf_s(logBuffer, __VA_ARGS__);  \
+sprintf(logBuffer, __VA_ARGS__);  \
 LogString(logBuffer);             \
 }
 

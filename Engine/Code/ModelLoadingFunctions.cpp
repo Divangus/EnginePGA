@@ -1,5 +1,5 @@
 #include "engine.h"
-#include "ModelLoadingFuncs.h"
+#include "ModelLoadingFunctions.h"
 
 #include <stb_image.h>
 #include <stb_image_write.h>

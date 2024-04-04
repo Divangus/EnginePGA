@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Code\BufferSupFuncs.cpp" />
+    <ClCompile Include="Code\BufferSuppFunctions.cpp" />
     <ClCompile Include="Code\engine.cpp" />
-    <ClCompile Include="Code\ModelLoadingFuncs.cpp" />
+    <ClCompile Include="Code\ModelLoadingFunctions.cpp" />
     <ClCompile Include="Code\platform.cpp" />
     <ClCompile Include="ThirdParty\glad\include\glad\glad.c" />
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp" />
@@ -34,10 +34,10 @@
     <ClCompile Include="ThirdParty\stb\stb.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Code\BufferSupFuncs.h" />
+    <ClInclude Include="Code\BufferSuppFunctions.h" />
     <ClInclude Include="Code\engine.h" />
     <ClInclude Include="Code\Globals.h" />
-    <ClInclude Include="Code\ModelLoadingFuncs.h" />
+    <ClInclude Include="Code\ModelLoadingFunctions.h" />
     <ClInclude Include="Code\platform.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\glad.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\khrplatform.h" />

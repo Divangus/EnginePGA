@@ -5,6 +5,8 @@
 
 #if defined(VERTEX) ///////////////////////////////////////////////////
 
+// TODO: Write your vertex shader here
+
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec2 aTexCoord;
 
@@ -17,6 +19,8 @@ void main()
 }
 
 #elif defined(FRAGMENT) ///////////////////////////////////////////////
+
+// TODO: Write your fragment shader here
 
 in vec2 vTexCoord;
 uniform sampler2D uTexture;
