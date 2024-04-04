@@ -237,6 +237,8 @@ void Init(App* app)
     app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
     app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
 
+    app->lights.push_back({LightType::LightType_Directional, vec3(1.0, 1.0, 1.0), vec3(1.0, -1.0, 1.0), vec3(0.0, 0.0, 0.0)});
+    app->lights.push_back({ LightType::LightType_Point, vec3(1.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 1.0, 1.0) });
 }
 
 void Gui(App* app)
@@ -281,12 +283,15 @@ void Render(App* app)
         const Program& texturedMeshProgram = app->programs[app->texturedMeshProgramIdx];
         glUseProgram(texturedMeshProgram.handle);
 
+        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->localUniformBuffer.handle, app->globalParamsOffset, app->globalParamsSize);
+
+
         for (auto it = app->entities.begin(); it != app->entities.end(); ++it)
         {
                     
             glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->localUniformBuffer.handle, it->localParamsOffset, it->localParamsSize);            
 
-            Model& model = app->models[app->patricioModel];
+            Model& model = app->models[it->modelIndex];
             Mesh& mesh = app->meshes[model.meshIdx];
 
             //glUniformMatrix4fv(glGetUniformLocation(texturedMeshProgram.handle, "WVP"), 1, GL_FALSE, &WVP[0][0]);
@@ -337,6 +342,25 @@ void App::UpdateEntityBuffer()
     u32 cont = 0;
 
     BufferManager::MapBuffer(localUniformBuffer, GL_WRITE_ONLY);
+
+    //Push lights global params
+    globalParamsOffset = localUniformBuffer.head;
+    PushVec3(localUniformBuffer, cameraPosition);
+    PushUInt(localUniformBuffer, lights.size());
+
+    for (size_t i = 0; i < lights.size(); ++i)
+    {
+        BufferManager::AlignHead(localUniformBuffer, sizeof(vec4));
+
+        Light& light = lights[i];
+        PushUInt(localUniformBuffer, light.type);
+        PushVec3(localUniformBuffer, light.color);
+        light.direction.y = sin(deltaTime + 100.0) * 1000.0;
+        PushVec3(localUniformBuffer, light.direction);
+        PushVec3(localUniformBuffer, light.position);
+    }
+    globalParamsSize = localUniformBuffer.head - globalParamsOffset;
+
 
     for (auto it = entities.begin(); it != entities.end(); ++it)
     {

@@ -50,7 +50,6 @@ struct App
     u32 texturedGeometryProgramIdx = 0;
     u32 texturedMeshProgramIdx = 0;
 
-    u32 patricioModel = 0;
     GLuint texturedMeshProgram_uTexture;
     
     // texture indices
@@ -80,7 +79,10 @@ struct App
     GLint uniformBlockAlignment; //Alignment between uniform BLOCKS!!!!
     Buffer localUniformBuffer;
     std::vector<Entity> entities;
+    std::vector<Light> lights;
 
+    GLuint globalParamsOffset;
+    GLuint globalParamsSize;
 };
 
 void Init(App* app);
