@@ -83,6 +83,9 @@ struct App
 
     GLuint globalParamsOffset;
     GLuint globalParamsSize;
+
+    GLuint framebufferHandle;
+    GLuint colorAttachmentHandle;
 };
 
 void Init(App* app);
