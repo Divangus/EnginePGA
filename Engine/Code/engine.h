@@ -27,6 +27,10 @@ struct App
 
     void UpdateEntityBuffer();
 
+    void ConfigureFrameBuffer(FrameBuffer& aConfigFB);
+
+    void RenderGeomeetry(const Program& aBindedProgram);
+
     // Loop
     f32  deltaTime;
     bool isRunning;
@@ -48,7 +52,10 @@ struct App
 
     // program indices
     u32 texturedGeometryProgramIdx = 0;
-    u32 texturedMeshProgramIdx = 0;
+    
+    GLuint renderToBackBufferShader;
+    GLuint renderToFrameBufferShader;
+    GLuint framebufferToQuadShader;
 
     GLuint texturedMeshProgram_uTexture;
     
@@ -86,6 +93,8 @@ struct App
 
     GLuint framebufferHandle;
     GLuint colorAttachmentHandle;
+
+    FrameBuffer deferredFrameBuffer;
 };
 
 void Init(App* app);

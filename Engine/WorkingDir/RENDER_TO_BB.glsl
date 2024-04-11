@@ -1,4 +1,4 @@
-#ifdef BASE_MODEL
+#ifdef RENDER_TO_BB
 
 #if defined(VERTEX) ///////////////////////////////////////////////////
 
@@ -9,6 +9,54 @@ layout(location = 2) in vec2 aTexCoord;
 //layout(location = 4) in vec3 aBitangent;
 
 struct Light
+        glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
+
+        GLuint drawBuffers[] = { app->colorAttachmentHandle };
+        glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
+
+
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        const Program& texturedMeshProgram = app->programs[app->renderToBackBufferShader];
+        glUseProgram(texturedMeshProgram.handle);
+
+        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->localUniformBuffer.handle, app->globalParamsOffset, app->globalParamsSize);
+
+
+        for (auto it = app->entities.begin(); it != app->entities.end(); ++it)
+        {
+                    
+            glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->localUniformBuffer.handle, it->localParamsOffset, it->localParamsSize);            
+
+            Model& model = app->models[it->modelIndex];
+            Mesh& mesh = app->meshes[model.meshIdx];
+
+            //glUniformMatrix4fv(glGetUniformLocation(texturedMeshProgram.handle, "WVP"), 1, GL_FALSE, &WVP[0][0]);
+
+            for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+            {
+                GLuint vao = FindVAO(mesh, i, texturedMeshProgram);
+                glBindVertexArray(vao);
+
+                u32 subMeshmaterialIdx = model.materialIdx[i];
+                Material& subMeshMaterial = app->materials[subMeshmaterialIdx];
+
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, app->textures[subMeshMaterial.albedoTextureIdx].handle);
+                glUniform1i(app->texturedMeshProgram_uTexture, 0);
+
+                SubMesh& submesh = mesh.submeshes[i];
+                glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
+            }
+
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    }
+    break;
 {
 	uint type;
 	vec3 color;
