@@ -31,6 +31,8 @@ struct App
 
     void RenderGeomeetry(const Program& aBindedProgram);
 
+    const GLuint CreateTexture(const bool isFloatingPoint);
+
     // Loop
     f32  deltaTime;
     bool isRunning;

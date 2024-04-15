@@ -73,8 +73,9 @@ in vec3 vViewDir;
 uniform sampler2D uTexture
 
 layout(location = 0) out vec4 oAlbedo;
-layout(location = 0) out vec4 oNormals;
-layout(location = 0) out vec4 oPosition;
+layout(location = 1) out vec4 oNormals;
+layout(location = 2) out vec4 oPosition;
+layout(location = 2) out vec4 oPosition;
 
 void main()
 {

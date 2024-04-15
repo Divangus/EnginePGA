@@ -303,6 +303,7 @@ void Render(App* app)
 
         app->UpdateEntityBuffer();
 
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -313,7 +314,6 @@ void Render(App* app)
 
         app->RenderGeomeetry(ForwardProgram);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     }
     break;
@@ -411,6 +411,10 @@ void App::UpdateEntityBuffer()
 
 void App::ConfigureFrameBuffer(FrameBuffer& aConfigFB)
 {
+    aConfigFB.colorAttachment.push_back(CreateTexture());
+    aConfigFB.colorAttachment.push_back(CreateTexture());
+    aConfigFB.colorAttachment.push_back(CreateTexture(true));
+
     const GLuint NUMBER_OF_CA = 3;
     for (size_t i = 0; i < NUMBER_OF_CA; ++i)
     {
@@ -497,4 +501,23 @@ void App::RenderGeomeetry(const Program& aBindedProgram)
         }
 
     }
+}
+
+const GLuint App::CreateTexture(const bool isFloatingPoint)
+{
+    GLuint textureHandle;
+
+
+
+    glGenTextures(1, &textureHandle);
+    glBindTexture(GL_TEXTURE_2D, textureHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, displaySize.x, displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return textureHandle;
 }
