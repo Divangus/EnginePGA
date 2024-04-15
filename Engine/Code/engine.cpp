@@ -343,6 +343,12 @@ void Render(App* app)
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+
+
+
     }
     break;
 
