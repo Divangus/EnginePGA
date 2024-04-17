@@ -23,7 +23,6 @@ layout(binding = 0, std140) uniform GlobalParams
 	Light uLight[16];
 };
 
-
 out vec2 vTexCoord;
 out vec3 vPosition; // in worldspace
 out vec3 vNormal;  // in worldspace
@@ -70,18 +69,19 @@ in vec3 vPosition; // in worldspace
 in vec3 vNormal;  // in worldspace
 in vec3 vViewDir;
 
-uniform sampler2D uTexture
+uniform sampler2D uTexture;
 
 layout(location = 0) out vec4 oAlbedo;
 layout(location = 1) out vec4 oNormals;
 layout(location = 2) out vec4 oPosition;
-layout(location = 2) out vec4 oPosition;
+layout(location = 3) out vec4 oViewDir;
 
 void main()
 {
 	oAlbedo = texture(uTexture, vTexCoord);
 	oNormals = vec4(vNormal, 1.0);
 	oPosition = vec4(vPosition, 1.0);
+	oViewDir = vec4(vViewDir,1.0);
 }
 
 #endif

@@ -202,7 +202,7 @@ struct FrameBuffer
 {
     GLuint fbHandle;
     std::vector<GLuint> colorAttachment;
-    GLuint dephtHandle;
+    GLuint depthHandle;
 };
 
 #define ILOG(...)                 \
