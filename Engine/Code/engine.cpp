@@ -224,8 +224,9 @@ void Init(App* app)
     const Program& texturedMeshProgram = app->programs[app->renderToFrameBufferShader];
     app->texturedMeshProgram_uTexture = glGetUniformLocation(texturedMeshProgram.handle, "uTexture");
     u32 PatrickModelIndex = ModelLoader::LoadModel(app, "Patrick/Patrick.obj");
+    u32 GroundModelIndex = ModelLoader::LoadModel(app, "Patrick/Ground.obj");
 
-    //app->diceTexIdx = ModelLoader::LoadTexture2D(app, "dice.png");
+    app->diceTexIdx = ModelLoader::LoadTexture2D(app, "dice.png");
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -238,6 +239,9 @@ void Init(App* app)
     app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
     app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
     app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
+    app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
+    
+    //app->entities.push_back({ glm::identity<glm::mat4>(), GroundModelIndex,0,0 });
 
     app->lights.push_back({ LightType::LightType_Directional, vec3(1.0, 1.0, 1.0), vec3(1.0, -1.0, 1.0), vec3(0.0, 0.0, 0.0) });
     app->lights.push_back({ LightType::LightType_Point, vec3(1.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 1.0, 1.0) });
@@ -423,8 +427,7 @@ void App::UpdateEntityBuffer()
     for (auto it = entities.begin(); it != entities.end(); ++it)
     {
 
-        //glm::mat4 world = TransformPositionScale(vec3(0.f + (1 * cont), 2.0f, 0.0), vec3(0.45f));
-        glm::mat4 world = it->worldMatrix;
+        glm::mat4 world = TransformPositionScale(vec3(0.f + (1 * cont), 2.0f, 0.0), vec3(0.45f));
         glm::mat4 WVP = projection * view * world;
 
         Buffer& localBuffer = localUniformBuffer;
