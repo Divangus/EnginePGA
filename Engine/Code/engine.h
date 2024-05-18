@@ -24,6 +24,9 @@ const u16 indices[] =
 
 struct App
 {
+    void processInput(GLFWwindow* window);
+
+    void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
     void UpdateEntityBuffer();
 
@@ -32,6 +35,14 @@ struct App
     void RenderGeometry(const Program& aBindedProgram);
 
     const GLuint CreateTexture(const bool isFloatingPoint = false);
+
+    //camera
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    float yaw;
+    float pitch;
 
     // Loop
     f32  deltaTime;

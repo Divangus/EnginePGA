@@ -391,14 +391,9 @@ void App::UpdateEntityBuffer()
     float zfar = 1000.0f;
     glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspectRatio, znear, zfar);
 
-    vec3 target = vec3(0.f, 0.f, 0.f);
-    vec3 cameraPosition = vec3(5.0, 5.0, 5.0);
+    processInput(glfwGetCurrentContext());
 
-    vec3 zCam = glm::normalize(cameraPosition - target);
-    vec3 xCam = glm::cross(zCam, vec3(0, 1, 0));
-    vec3 yCam = glm::cross(xCam, zCam);
-
-    glm::mat4 view = glm::lookAt(cameraPosition, target, yCam);
+    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
 
     u32 cont = 0;
@@ -407,7 +402,7 @@ void App::UpdateEntityBuffer()
 
     //Push lights global params
     globalParamsOffset = localUniformBuffer.head;
-    PushVec3(localUniformBuffer, cameraPosition);
+    PushVec3(localUniformBuffer, cameraPos);
     PushUInt(localUniformBuffer, lights.size());
 
     for (size_t i = 0; i < lights.size(); ++i)
@@ -541,3 +536,19 @@ const GLuint App::CreateTexture(const bool isFloatingPoint)
 
     return textureHandle;
 }
+
+void App::processInput(GLFWwindow* window)
+{
+    float cameraSpeed = 2.5f * deltaTime;
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+}
+
+
