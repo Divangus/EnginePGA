@@ -26,15 +26,21 @@ struct App
 {
     void processInput(GLFWwindow* window);
 
-    void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-
     void UpdateEntityBuffer();
 
     void ConfigureFrameBuffer(FrameBuffer& aConfigFB);
 
     void RenderGeometry(const Program& aBindedProgram);
 
+    void CreateDirectLight(vec3 color, vec3 direction, vec3 position);
+
+    void CreatePointLight(vec3 color, vec3 direction, vec3 position);
+
     const GLuint CreateTexture(const bool isFloatingPoint = false);
+
+    //models
+    u32 CubeModelIndex;
+    u32 SphereModelIndex;
 
     //camera
     glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);

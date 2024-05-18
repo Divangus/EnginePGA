@@ -179,6 +179,18 @@ GLuint FindVAO(Mesh& mesh, u32 submeshIndex, const Program& program)
     return ReturnValue;
 }
 
+glm::mat4 TransformScale(const vec3& scaleFactors)
+{
+    return glm::scale(scaleFactors);
+}
+
+glm::mat4 TransformPositionScale(const vec3& position, const vec3& scaleFactors)
+{
+    glm::mat4 ReturnValue = glm::translate(position);
+    ReturnValue = glm::scale(ReturnValue, scaleFactors);
+    return ReturnValue;
+}
+
 void Init(App* app)
 {
     // TODO: Initialize your resources here!
@@ -213,20 +225,18 @@ void Init(App* app)
     glBindVertexArray(0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    //app->texturedGeometryProgramIdx = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
-    //const Program& texturedGeometryProgram = app->programs[app->texturedGeometryProgramIdx];
-    //app->programUniformTexture = glGetUniformLocation(texturedGeometryProgram.handle, "uTexture");
-
     app->renderToBackBufferShader = LoadProgram(app, "RENDER_TO_BB.glsl", "RENDER_TO_BB");
     app->renderToFrameBufferShader = LoadProgram(app, "RENDER_TO_FB.glsl", "RENDER_TO_FB");
     app->framebufferToQuadShader = LoadProgram(app, "FB_TO_BB.glsl", "FB_TO_BB");
 
     const Program& texturedMeshProgram = app->programs[app->renderToFrameBufferShader];
     app->texturedMeshProgram_uTexture = glGetUniformLocation(texturedMeshProgram.handle, "uTexture");
+
     u32 PatrickModelIndex = ModelLoader::LoadModel(app, "Patrick/Patrick.obj");
     u32 GroundModelIndex = ModelLoader::LoadModel(app, "Patrick/Ground.obj");
+    app->CubeModelIndex = ModelLoader::LoadModel(app, "Patrick/cube.obj");
+    app->SphereModelIndex = ModelLoader::LoadModel(app, "Patrick/sphere.obj");
 
-    app->diceTexIdx = ModelLoader::LoadTexture2D(app, "dice.png");
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -236,21 +246,38 @@ void Init(App* app)
 
     app->localUniformBuffer = CreateConstantBuffer(app->maxUniformBufferSize);
 
-    app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
-    app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
-    app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
-    app->entities.push_back({ glm::identity<glm::mat4>(),PatrickModelIndex,0,0 });
+    app->entities.push_back({ TransformPositionScale(vec3(0.0, 0.0, -4.0), vec3(1.0, 1.0, 1.0)),PatrickModelIndex,0,0 });
+    app->entities.push_back({ TransformPositionScale(vec3(-4.0, 0.0, -5.0), vec3(1.0, 1.0, 1.0)),PatrickModelIndex,0,0 });
+    app->entities.push_back({ TransformPositionScale(vec3(4.0, 0.0, -3.0), vec3(1.0, 1.0, 1.0)),PatrickModelIndex,0,0 });
     
-    //app->entities.push_back({ glm::identity<glm::mat4>(), GroundModelIndex,0,0 });
+    app->entities.push_back({ TransformPositionScale(vec3(0.0, -4.0, 0.0), vec3(1.0, 1.0, 1.0)), GroundModelIndex, 0, 0 });
 
-    app->lights.push_back({ LightType::LightType_Directional, vec3(1.0, 1.0, 1.0), vec3(1.0, -1.0, 1.0), vec3(0.0, 0.0, 0.0) });
-    app->lights.push_back({ LightType::LightType_Point, vec3(1.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 1.0, 1.0) });
+    app->CreateDirectLight(vec3(1.0, 1.0, 1.0), vec3(1.0, -1.0, 1.0), vec3(5.0, -3.0, 0.0));
+    app->CreateDirectLight(vec3(1.0, 1.0, 1.0), vec3(-1.0, -1.0, -1.0), vec3(-5.0, -3.0, 0.0));
+
+    app->CreatePointLight(vec3(1.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, -3.0));
+    //app->CreatePointLight(vec3(0.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 1.0, 1.0));
+    //app->CreatePointLight(vec3(0.0, 0.0, 1.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 1.0, 1.0));
 
     //
     app->ConfigureFrameBuffer(app->deferredFrameBuffer);
 
     app->mode = Mode_Deferred;
     
+}
+
+void App::CreateDirectLight(vec3 color, vec3 direction, vec3 position) 
+{
+    lights.push_back({ LightType::LightType_Directional, color, direction, position });
+
+    entities.push_back({ TransformPositionScale(position, vec3(0.5)),CubeModelIndex,0,0 });
+}
+
+void App::CreatePointLight(vec3 color, vec3 direction, vec3 position) 
+{
+    lights.push_back({ LightType::LightType_Point, color, direction, position });
+
+    entities.push_back({ TransformPositionScale(position, vec3(0.5)),SphereModelIndex,0,0 });
 }
 
 void Gui(App* app)
@@ -288,17 +315,7 @@ void Update(App* app)
     // You can handle app->input keyboard/mouse here
 }
 
-glm::mat4 TransformScale(const vec3& scaleFactors)
-{
-    return glm::scale(scaleFactors);
-}
 
-glm::mat4 TransformPositionScale(const vec3& position, const vec3& scaleFactors)
-{
-    glm::mat4 ReturnValue = glm::translate(position);
-    ReturnValue = glm::scale(ReturnValue, scaleFactors);
-    return ReturnValue;
-}
 
 void Render(App* app)
 {
@@ -422,7 +439,7 @@ void App::UpdateEntityBuffer()
     for (auto it = entities.begin(); it != entities.end(); ++it)
     {
 
-        glm::mat4 world = TransformPositionScale(vec3(0.f + (1 * cont), 2.0f, 0.0), vec3(0.45f));
+        glm::mat4 world = it->worldMatrix;
         glm::mat4 WVP = projection * view * world;
 
         Buffer& localBuffer = localUniformBuffer;
@@ -539,7 +556,7 @@ const GLuint App::CreateTexture(const bool isFloatingPoint)
 
 void App::processInput(GLFWwindow* window)
 {
-    float cameraSpeed = 2.5f * deltaTime;
+    float cameraSpeed = 5.f * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
