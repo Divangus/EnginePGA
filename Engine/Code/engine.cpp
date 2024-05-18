@@ -235,6 +235,7 @@ void Init(App* app)
     u32 PatrickModelIndex = ModelLoader::LoadModel(app, "Patrick/Patrick.obj");
     u32 GroundModelIndex = ModelLoader::LoadModel(app, "Patrick/Ground.obj");
     u32 ShrekModelIndex = ModelLoader::LoadModel(app, "Patrick/Shrek.obj");
+    u32 LuffyModelIndex = ModelLoader::LoadModel(app, "Patrick/Luffy.obj");
 
     app->CubeModelIndex = ModelLoader::LoadModel(app, "Patrick/cube.obj");
     app->SphereModelIndex = ModelLoader::LoadModel(app, "Patrick/sphere.obj");
@@ -255,13 +256,14 @@ void Init(App* app)
     app->entities.push_back({ TransformPositionScale(vec3(0.0, -4.0, 0.0), vec3(1.0, 1.0, 1.0)), GroundModelIndex, 0, 0 });
 
     app->entities.push_back({ TransformPositionScale(vec3(-5.0, -4.0, 5.0), vec3(1.0, 1.0, 1.0)), ShrekModelIndex, 0, 0 });
+    app->entities.push_back({ TransformPositionScale(vec3(6.0, -4.0, 5.0), vec3(0.03, 0.03, 0.03)), LuffyModelIndex, 0, 0 });
 
     app->CreateDirectLight(vec3(1.0, 1.0, 1.0), vec3(1.0, -1.0, 1.0), vec3(5.0, -3.0, 0.0));
     app->CreateDirectLight(vec3(1.0, 1.0, 1.0), vec3(-1.0, -1.0, -1.0), vec3(-5.0, -3.0, 0.0));
 
     app->CreatePointLight(vec3(1.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, -3.0));
     app->CreatePointLight(vec3(0.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(-4.0, -3.0, 6.0));
-    //app->CreatePointLight(vec3(0.0, 0.0, 1.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 1.0, 1.0));
+    app->CreatePointLight(vec3(1.0, 0.0, 1.0), vec3(1.0, 1.0, 1.0), vec3(4.0, -3.0, 6.0));
 
     //
     app->ConfigureFrameBuffer(app->deferredFrameBuffer);
