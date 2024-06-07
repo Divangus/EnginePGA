@@ -204,6 +204,36 @@ struct FrameBuffer
     GLuint fbHandle;
     std::vector<GLuint> colorAttachment;
     GLuint depthHandle;
+
+    void Clear()
+    {
+        if (fbHandle)
+        {
+            glDeleteFramebuffers(1, &fbHandle);
+            fbHandle = 0;
+        }
+        for (int i = 0; i < colorAttachment.size(); i++)
+        {
+            glDeleteFramebuffers(1, &colorAttachment[i]);
+        }
+        colorAttachment.clear();
+        if (depthHandle)
+        {
+            glDeleteRenderbuffers(1, &depthHandle);
+            depthHandle = 0;
+        }
+    }
+};
+
+struct WaterBuffer
+{
+    GLuint rtReflection = 0;
+    GLuint rtRefraction = 0;
+    GLuint rtReflectionDepth = 0;
+    GLuint rtRefractionDepth = 0;
+
+    FrameBuffer fboReflection;
+    FrameBuffer fboRefraction;
 };
 
 #define ILOG(...)                 \

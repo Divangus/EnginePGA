@@ -30,6 +30,10 @@ struct App
 
     void ConfigureFrameBuffer(FrameBuffer& aConfigFB);
 
+    void ConfigFrameBuffer(FrameBuffer& frameBuffer, GLuint& colorAttachment, GLuint& depthHandle);
+    
+    void ConfigureWaterBuffer(WaterBuffer& aConfigWB);
+
     void RenderGeometry(const Program& aBindedProgram);
 
     void CreateDirectLight(vec3 color, vec3 direction, vec3 position);

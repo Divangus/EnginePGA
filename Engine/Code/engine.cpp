@@ -263,7 +263,7 @@ void Init(App* app)
 
     app->CreatePointLight(vec3(1.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.0, -3.0));
     app->CreatePointLight(vec3(0.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0), vec3(-4.0, -3.0, 6.0));
-    app->CreatePointLight(vec3(1.0, 0.0, 1.0), vec3(1.0, 1.0, 1.0), vec3(4.0, -3.0, 6.0));
+    app->CreatePointLight(vec3(0.0, 0.0, 1.0), vec3(1.0, 1.0, 1.0), vec3(4.0, -3.0, 6.0));
 
     //
     app->ConfigureFrameBuffer(app->deferredFrameBuffer);
@@ -462,6 +462,8 @@ void App::UpdateEntityBuffer()
 
 void App::ConfigureFrameBuffer(FrameBuffer& aConfigFB)
 {
+    aConfigFB.Clear();
+
     aConfigFB.colorAttachment.push_back(CreateTexture());
     aConfigFB.colorAttachment.push_back(CreateTexture(true));
     aConfigFB.colorAttachment.push_back(CreateTexture(true));
@@ -479,10 +481,6 @@ void App::ConfigureFrameBuffer(FrameBuffer& aConfigFB)
 
     glGenFramebuffers(1, &aConfigFB.fbHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, aConfigFB.fbHandle);
-
-
-    //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, app->colorAttachmentHandle, 0);
-    //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, aConfigFB.dephtHandle, 0);
 
     std::vector<GLuint> drawBuffers;
     for (size_t i = 0; i < aConfigFB.colorAttachment.size(); i++)
@@ -503,6 +501,63 @@ void App::ConfigureFrameBuffer(FrameBuffer& aConfigFB)
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void App::ConfigFrameBuffer(FrameBuffer& frameBuffer, GLuint& colorAttachment, GLuint& depthHandle)
+{
+    glGenFramebuffers(1, &frameBuffer.fbHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer.fbHandle);
+
+    //Color Attachment
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colorAttachment, 0);
+
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthHandle, 0);
+
+    GLenum frameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (frameBufferStatus != GL_FRAMEBUFFER_COMPLETE)
+    {
+        int i = 0;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void App::ConfigureWaterBuffer(WaterBuffer& aConfigWB)
+{
+    glGenBuffers(1, &aConfigWB.rtReflection);
+    glBindTexture(GL_TEXTURE_2D, aConfigWB.rtReflection);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, displaySize.x, displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    glGenBuffers(1, &aConfigWB.rtRefraction);
+    glBindTexture(GL_TEXTURE_2D, aConfigWB.rtRefraction);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, displaySize.x, displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    glGenBuffers(1, &aConfigWB.rtReflectionDepth);
+    glBindTexture(GL_TEXTURE_2D, aConfigWB.rtRefraction);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, displaySize.x, displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+    glGenBuffers(1, &aConfigWB.rtRefractionDepth);
+    glBindTexture(GL_TEXTURE_2D, aConfigWB.rtRefractionDepth);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, displaySize.x, displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+    ConfigFrameBuffer(aConfigWB.fboReflection, aConfigWB.rtReflection, aConfigWB.rtReflectionDepth);
+
 }
 
 void App::RenderGeometry(const Program& aBindedProgram)
