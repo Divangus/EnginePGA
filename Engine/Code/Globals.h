@@ -176,6 +176,19 @@ struct Buffer {
     u32 head;
 };
 
+struct Camera
+{
+    //camera
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    glm::mat4 viewMatrix = glm::mat4();
+
+    float yaw;
+    float pitch;
+};
+
 struct Entity 
 {
     glm::mat4 worldMatrix;

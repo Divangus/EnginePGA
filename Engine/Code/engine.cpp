@@ -225,9 +225,12 @@ void Init(App* app)
     glBindVertexArray(0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
+    app->LoadWaterVAO();
+
     app->renderToBackBufferShader = LoadProgram(app, "RENDER_TO_BB.glsl", "RENDER_TO_BB");
     app->renderToFrameBufferShader = LoadProgram(app, "RENDER_TO_FB.glsl", "RENDER_TO_FB");
     app->framebufferToQuadShader = LoadProgram(app, "FB_TO_BB.glsl", "FB_TO_BB");
+    app->forwardClipping = LoadProgram(app, "FORWARD_CLIPPING.glsl", "FORWARD_CLIPPING");
 
     const Program& texturedMeshProgram = app->programs[app->renderToFrameBufferShader];
     app->texturedMeshProgram_uTexture = glGetUniformLocation(texturedMeshProgram.handle, "uTexture");
@@ -253,10 +256,13 @@ void Init(App* app)
     app->entities.push_back({ TransformPositionScale(vec3(-4.0, 0.0, -5.0), vec3(1.0, 1.0, 1.0)),PatrickModelIndex,0,0 });
     app->entities.push_back({ TransformPositionScale(vec3(4.0, 0.0, -3.0), vec3(1.0, 1.0, 1.0)),PatrickModelIndex,0,0 });
     
-    app->entities.push_back({ TransformPositionScale(vec3(0.0, -4.0, 0.0), vec3(1.0, 1.0, 1.0)), GroundModelIndex, 0, 0 });
+    //app->entities.push_back({ TransformPositionScale(vec3(0.0, -4.0, 0.0), vec3(1.0, 1.0, 1.0)), GroundModelIndex, 0, 0 });
 
-    app->entities.push_back({ TransformPositionScale(vec3(-5.0, -4.0, 5.0), vec3(1.0, 1.0, 1.0)), ShrekModelIndex, 0, 0 });
+    app->entities.push_back({ TransformPositionScale(vec3(-5.0, -4.0, 5.0), vec3(2.0, 2.0, 2.0)), ShrekModelIndex, 0, 0 });
     app->entities.push_back({ TransformPositionScale(vec3(6.0, -4.0, 5.0), vec3(0.03, 0.03, 0.03)), LuffyModelIndex, 0, 0 });
+
+    app->WaterWorldMatrix = TransformPositionScale(vec3(0.0, -2.0, 0.0), vec3(20.0, 20.0, 20.0));
+    app->WaterWorldMatrix = glm::rotate(app->WaterWorldMatrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
     app->CreateDirectLight(vec3(1.0, 1.0, 1.0), vec3(1.0, -1.0, 1.0), vec3(5.0, -3.0, 0.0));
     app->CreateDirectLight(vec3(1.0, 1.0, 1.0), vec3(-1.0, -1.0, -1.0), vec3(-5.0, -3.0, 0.0));
@@ -266,6 +272,8 @@ void Init(App* app)
     app->CreatePointLight(vec3(0.0, 0.0, 1.0), vec3(1.0, 1.0, 1.0), vec3(4.0, -3.0, 6.0));
 
     //
+    app->ConfigureWaterBuffer(app->watterBuffers.fboReflection);
+    app->ConfigureWaterBuffer(app->watterBuffers.fboRefraction);
     app->ConfigureFrameBuffer(app->deferredFrameBuffer);
 
     app->mode = Mode_Deferred;
@@ -312,6 +320,16 @@ void Gui(App* app)
         {
             ImGui::Image((ImTextureID)app->deferredFrameBuffer.colorAttachment[i], ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
         }
+        ImGui::Text("Water Reflection FrameBuffer");
+        for (size_t i = 0; i < app->watterBuffers.fboReflection.colorAttachment.size(); i++)
+        {
+            ImGui::Image((ImTextureID)app->watterBuffers.fboReflection.colorAttachment[i], ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
+        }
+        ImGui::Text("Water Refraction FrameBuffer");
+        for (size_t i = 0; i < app->watterBuffers.fboRefraction.colorAttachment.size(); i++)
+        {
+            ImGui::Image((ImTextureID)app->watterBuffers.fboRefraction.colorAttachment[i], ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
+        }
     }    
     ImGui::End();
 }
@@ -330,7 +348,7 @@ void Render(App* app)
     case Mode_Forward:
     {
 
-        app->UpdateEntityBuffer();
+        app->UpdateEntityBuffer(true);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -341,7 +359,7 @@ void Render(App* app)
         const Program& ForwardProgram = app->programs[app->renderToBackBufferShader];
         glUseProgram(ForwardProgram.handle);
 
-        app->RenderGeometry(ForwardProgram);
+        app->RenderGeometry(ForwardProgram, vec4(0, -1, 0, 15));
 
 
     }
@@ -349,12 +367,57 @@ void Render(App* app)
     case Mode_Deferred:
     {
 
-        app->UpdateEntityBuffer();
-
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glViewport(0, 0, app->displaySize.x, app->displaySize.y);
 
+        /////////////////////////////////////////////////////////////////////////////////////////// Water Reflection FBO
+
+        glEnable(GL_CLIP_DISTANCE0);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, app->watterBuffers.fboReflection.fbHandle);
+        GLuint reflectionBuffers[] = { app->watterBuffers.fboReflection.fbHandle };
+        glDrawBuffers(app->watterBuffers.fboReflection.colorAttachment.size(), reflectionBuffers);
+
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        //Move camera down water before rendering
+        float distance = 2 * (app->sceneCam.cameraPos.y - app->GetHeight(app->WaterWorldMatrix));
+        app->sceneCam.cameraPos.y -= distance;
+        app->sceneCam.pitch = -app->sceneCam.pitch;
+
+        const Program& DeferredProgram = app->programs[app->renderToFrameBufferShader];
+        glUseProgram(DeferredProgram.handle);
+        app->UpdateEntityBuffer(false);
+        app->RenderGeometry(DeferredProgram, vec4(0, 1, 0, -app->GetHeight(app->WaterWorldMatrix)));
+
+        //Return camero to original pos
+        app->sceneCam.cameraPos.y += distance;
+        app->sceneCam.pitch = -app->sceneCam.pitch;
+
+        glUseProgram(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        /////////////////////////////////////////////////////////////////////////////////////////// Water Refraction FBO
+
+        glBindFramebuffer(GL_FRAMEBUFFER, app->watterBuffers.fboRefraction.fbHandle);
+        GLuint refractionBuffers[] = { app->watterBuffers.fboRefraction.fbHandle };
+        glDrawBuffers(app->watterBuffers.fboRefraction.colorAttachment.size(), refractionBuffers);
+
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glUseProgram(DeferredProgram.handle);
+        app->UpdateEntityBuffer(false);
+        app->RenderGeometry(DeferredProgram, vec4(0, -1, 0, app->GetHeight(app->WaterWorldMatrix)));
+
+        glUseProgram(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        /////////////////////////////////////////////////////////////////////////////////////////// Deferred FBO
+
+        glDisable(GL_CLIP_DISTANCE0);
         glBindFramebuffer(GL_FRAMEBUFFER, app->deferredFrameBuffer.fbHandle);
 
         GLuint drawBuffers[] = { app->deferredFrameBuffer.fbHandle };
@@ -363,10 +426,21 @@ void Render(App* app)
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        const Program& DeferredProgram = app->programs[app->renderToFrameBufferShader];
         glUseProgram(DeferredProgram.handle);
-        app->RenderGeometry(DeferredProgram);
+        app->UpdateEntityBuffer(true);
+        app->RenderGeometry(DeferredProgram, vec4(0, -1, 0, 3));
+
+        glUseProgram(0);
+
+        const Program& FwClipp = app->programs[app->forwardClipping];
+        glUseProgram(FwClipp.handle);
+        app->RenderWater(FwClipp);
+
+        glUseProgram(0);
+
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -398,7 +472,6 @@ void Render(App* app)
 
         glBindVertexArray(0);
         glUseProgram(0);
-
     }
     break;
 
@@ -406,18 +479,17 @@ void Render(App* app)
     }
 }
 
-void App::UpdateEntityBuffer()
+void App::UpdateEntityBuffer(bool mouse)
 {
 
     float aspectRatio = (float)displaySize.x / (float)displaySize.y;
     float znear = 0.1f;
     float zfar = 1000.0f;
-    glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspectRatio, znear, zfar);
+    projection = glm::perspective(glm::radians(60.0f), aspectRatio, znear, zfar);
 
-    processInput(glfwGetCurrentContext());
+    if(mouse) processInput(glfwGetCurrentContext());
 
-    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
+    view = glm::lookAt(sceneCam.cameraPos, sceneCam.cameraPos + sceneCam.cameraFront, sceneCam.cameraUp);
 
     u32 cont = 0;
 
@@ -425,7 +497,7 @@ void App::UpdateEntityBuffer()
 
     //Push lights global params
     globalParamsOffset = localUniformBuffer.head;
-    PushVec3(localUniformBuffer, cameraPos);
+    PushVec3(localUniformBuffer, sceneCam.cameraPos);
     PushUInt(localUniformBuffer, lights.size());
 
     for (size_t i = 0; i < lights.size(); ++i)
@@ -458,6 +530,29 @@ void App::UpdateEntityBuffer()
     }
 
     BufferManager::UnmapBuffer(localUniformBuffer);
+}
+
+void App::RenderWater(const Program& aBindedProgram)
+{   
+
+    // Obtén las ubicaciones de las variables uniformes en el shader
+    GLuint viewLoc = glGetUniformLocation(aBindedProgram.handle, "viewMatrix");
+    GLuint projLoc = glGetUniformLocation(aBindedProgram.handle, "projectionMatrix");
+    GLuint modelLoc = glGetUniformLocation(aBindedProgram.handle, "modelMatrix");
+
+    // Envía las matrices al shader
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, &projection[0][0]);
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &WaterWorldMatrix[0][0]);
+
+    // Enlaza el VAO del agua
+    glBindVertexArray(waterVAO);
+
+    // Dibuja los elementos (triángulos)
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    // Desenlaza el VAO
+    glBindVertexArray(0);
 }
 
 void App::ConfigureFrameBuffer(FrameBuffer& aConfigFB)
@@ -503,15 +598,36 @@ void App::ConfigureFrameBuffer(FrameBuffer& aConfigFB)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void App::ConfigFrameBuffer(FrameBuffer& frameBuffer, GLuint& colorAttachment, GLuint& depthHandle)
+void App::ConfigureWaterBuffer(FrameBuffer& aConfigFB)
 {
-    glGenFramebuffers(1, &frameBuffer.fbHandle);
-    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer.fbHandle);
+    aConfigFB.Clear();
 
-    //Color Attachment
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colorAttachment, 0);
+    aConfigFB.colorAttachment.push_back(CreateTexture());
 
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthHandle, 0);
+    glGenTextures(1, &aConfigFB.depthHandle);
+    glBindTexture(GL_TEXTURE_2D, aConfigFB.depthHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, displaySize.x, displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glGenFramebuffers(1, &aConfigFB.fbHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, aConfigFB.fbHandle);
+
+    std::vector<GLuint> drawBuffers;
+    for (size_t i = 0; i < aConfigFB.colorAttachment.size(); i++)
+    {
+        GLuint position = GL_COLOR_ATTACHMENT0 + i;
+        glFramebufferTexture(GL_FRAMEBUFFER, position, aConfigFB.colorAttachment[i], 0);
+        drawBuffers.push_back(position);
+    }
+
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, aConfigFB.depthHandle, 0);
+
+    glDrawBuffers(drawBuffers.size(), drawBuffers.data());
 
     GLenum frameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (frameBufferStatus != GL_FRAMEBUFFER_COMPLETE)
@@ -522,48 +638,12 @@ void App::ConfigFrameBuffer(FrameBuffer& frameBuffer, GLuint& colorAttachment, G
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void App::ConfigureWaterBuffer(WaterBuffer& aConfigWB)
-{
-    glGenBuffers(1, &aConfigWB.rtReflection);
-    glBindTexture(GL_TEXTURE_2D, aConfigWB.rtReflection);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, displaySize.x, displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-    glGenBuffers(1, &aConfigWB.rtRefraction);
-    glBindTexture(GL_TEXTURE_2D, aConfigWB.rtRefraction);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, displaySize.x, displaySize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-    glGenBuffers(1, &aConfigWB.rtReflectionDepth);
-    glBindTexture(GL_TEXTURE_2D, aConfigWB.rtRefraction);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, displaySize.x, displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-
-    glGenBuffers(1, &aConfigWB.rtRefractionDepth);
-    glBindTexture(GL_TEXTURE_2D, aConfigWB.rtRefractionDepth);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, displaySize.x, displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-
-    ConfigFrameBuffer(aConfigWB.fboReflection, aConfigWB.rtReflection, aConfigWB.rtReflectionDepth);
-
-}
-
-void App::RenderGeometry(const Program& aBindedProgram)
+void App::RenderGeometry(const Program& aBindedProgram, vec4 clippingPlane)
 {
     glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), localUniformBuffer.handle, globalParamsOffset, globalParamsSize);
 
+    GLuint planeLoc = glGetUniformLocation(aBindedProgram.handle, "plane");
+    glUniform4f(planeLoc, clippingPlane.x, clippingPlane.y, clippingPlane.z, clippingPlane.w);
 
     for (auto it = entities.begin(); it != entities.end(); ++it)
     {
@@ -620,13 +700,56 @@ void App::processInput(GLFWwindow* window)
     float cameraSpeed = 5.f * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * cameraFront;
+        sceneCam.cameraPos += cameraSpeed * sceneCam.cameraFront;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
+        sceneCam.cameraPos -= cameraSpeed * sceneCam.cameraFront;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        sceneCam.cameraPos -= glm::normalize(glm::cross(sceneCam.cameraFront, sceneCam.cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        sceneCam.cameraPos += glm::normalize(glm::cross(sceneCam.cameraFront, sceneCam.cameraUp)) * cameraSpeed;
+}
+
+void App::LoadWaterVAO()
+{
+    // Suponiendo que tienes los datos de los vértices y los índices definidos
+    float waterVertices[] = {
+        // posiciones de los vértices
+        -0.5f, 0.0f, -0.5f,
+         0.5f, 0.0f, -0.5f,
+         0.5f, 0.0f,  0.5f,
+        -0.5f, 0.0f,  0.5f
+    };
+
+    unsigned int waterIndices[] = {
+        0, 1, 2,
+        2, 3, 0
+    };
+
+    glGenVertexArrays(1, &waterVAO);
+    glGenBuffers(1, &waterVBO);
+    glGenBuffers(1, &waterEBO);
+
+    glBindVertexArray(waterVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, waterVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(waterVertices), waterVertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, waterEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(waterIndices), waterIndices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+}
+
+float App::GetHeight(glm::mat4 transformMat)
+{
+    vec3 pos = transformMat[3]; // 4th column of the model matrix
+
+    float D = pos.y;
+
+    return D;
 }
 
 

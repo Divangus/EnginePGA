@@ -54,19 +54,19 @@ void OnGlfwMouseMoveEvent(GLFWwindow* window, double xpos, double ypos)
     app->input.mouseDelta.x *= sensitivity;
     app->input.mouseDelta.y *= sensitivity;
 
-    app->yaw += app->input.mouseDelta.x;
-    app->pitch += app->input.mouseDelta.y;
+    app->sceneCam.yaw += app->input.mouseDelta.x;
+    app->sceneCam.pitch += app->input.mouseDelta.y;
 
-    if (app->pitch > 89.0f)
-        app->pitch = 89.0f;
-    if (app->pitch < -89.0f)
-        app->pitch = -89.0f;
+    if (app->sceneCam.pitch > 89.0f)
+        app->sceneCam.pitch = 89.0f;
+    if (app->sceneCam.pitch < -89.0f)
+        app->sceneCam.pitch = -89.0f;
 
     glm::vec3 direction;
-    direction.x = cos(glm::radians(app->yaw)) * cos(glm::radians(app->pitch));
-    direction.y = sin(glm::radians(app->pitch));
-    direction.z = sin(glm::radians(app->yaw)) * cos(glm::radians(app->pitch));
-    app->cameraFront = glm::normalize(direction);
+    direction.x = cos(glm::radians(app->sceneCam.yaw)) * cos(glm::radians(app->sceneCam.pitch));
+    direction.y = sin(glm::radians(app->sceneCam.pitch));
+    direction.z = sin(glm::radians(app->sceneCam.yaw)) * cos(glm::radians(app->sceneCam.pitch));
+    app->sceneCam.cameraFront = glm::normalize(direction);
 }
 
 void OnGlfwMouseEvent(GLFWwindow* window, int button, int event, int modifiers)

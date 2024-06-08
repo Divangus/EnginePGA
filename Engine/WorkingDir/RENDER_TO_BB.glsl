@@ -23,6 +23,7 @@ layout(binding = 0, std140) uniform GlobalParams
 	Light uLight[16];
 };
 
+uniform vec4 plane;
 
 out vec2 vTexCoord;
 out vec3 vPosition; // in worldspace
@@ -39,10 +40,14 @@ void main()
 {
 	vTexCoord = aTexCoord;
 
+	vec4 worldPosition = uWorldMatrix * vec4(aPosition,1.0);
+
 	vPosition = vec3(uWorldMatrix * vec4(aPosition,1.0));
-	vNormal = vec3(uWorldMatrix * vec4(aNormal,0.0));
+	vNormal = normalize(vec3(uWorldMatrix * vec4(aNormal,0.0)));
 	vViewDir = uCameraPosition - vPosition;
 	float clippingScale = 1.0;
+
+	gl_ClipDistance[0] = dot(worldPosition, plane);
 
 	gl_Position = uWorldViewProjectionMatrix * vec4(aPosition, clippingScale);
 }
@@ -75,6 +80,7 @@ layout(location = 0) out vec4 oColor;
 
 void CalculateBlitVars(in Light light ,out vec3 ambient, out vec3 diffuse, out vec3 specular)
 {
+			
 			vec3 lightDir = normalize(light.direction);
 
 			float ambientStrenght = 0.2;

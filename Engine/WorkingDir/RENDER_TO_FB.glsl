@@ -34,14 +34,20 @@ layout(binding = 1, std140) uniform LocalParams
 	mat4 uWorldViewProjectionMatrix;
 };
 
+uniform vec4 plane;
+
 void main()
 {
 	vTexCoord = aTexCoord;
+
+	vec4 worldPosition = uWorldMatrix * vec4(aPosition,1.0);
 
 	vPosition = vec3(uWorldMatrix * vec4(aPosition,1.0));
 	vNormal = vec3(uWorldMatrix * vec4(aNormal,0.0));
 	vViewDir = uCameraPosition - vPosition;
 	float clippingScale = 1.0;
+
+	gl_ClipDistance[0] = dot(worldPosition, plane);
 
 	gl_Position = uWorldViewProjectionMatrix * vec4(aPosition, clippingScale);
 }

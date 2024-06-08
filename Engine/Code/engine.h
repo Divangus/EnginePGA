@@ -22,19 +22,41 @@ const u16 indices[] =
     0,2,3
 };
 
+enum WaterScenePart
+{
+    REFLECTION,
+    REFRACTION
+};
+
 struct App
 {
     void processInput(GLFWwindow* window);
 
-    void UpdateEntityBuffer();
+    void LoadWaterVAO();
+
+    void UpdateEntityBuffer(bool mouse);
+
+    //void UpdateWatterBuffer();
+
+    void RenderWater(const Program& aBindedProgram);
+
+    //void PassWaterScene(Camera camera, GLenum colorAttachment, WaterScenePart part);
 
     void ConfigureFrameBuffer(FrameBuffer& aConfigFB);
 
-    void ConfigFrameBuffer(FrameBuffer& frameBuffer, GLuint& colorAttachment, GLuint& depthHandle);
-    
-    void ConfigureWaterBuffer(WaterBuffer& aConfigWB);
+    FrameBuffer CreateFrameBuffer();
 
-    void RenderGeometry(const Program& aBindedProgram);
+    GLuint CreateTextureAttachment(int width, int height);
+
+    GLuint CreateDepthAttachment(int width, int height);
+
+    //void ConfigFrameBuffer(FrameBuffer& frameBuffer, GLuint& colorAttachment, GLuint& depthHandle);
+    
+    void ConfigureWaterBuffer(FrameBuffer& aConfigFB);
+
+    float GetHeight(glm::mat4 transformMat);
+
+    void RenderGeometry(const Program& aBindedProgram, vec4 clippingPlane);
 
     void CreateDirectLight(vec3 color, vec3 direction, vec3 position);
 
@@ -46,13 +68,18 @@ struct App
     u32 CubeModelIndex;
     u32 SphereModelIndex;
 
-    //camera
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    ////camera
+    //glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    //glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+    //glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    float yaw;
-    float pitch;
+    //float yaw;
+    //float pitch;
+
+    Camera sceneCam;
+
+    glm::mat4 projection;
+    glm::mat4 view;
 
     // Loop
     f32  deltaTime;
@@ -79,6 +106,7 @@ struct App
     GLuint renderToBackBufferShader;
     GLuint renderToFrameBufferShader;
     GLuint framebufferToQuadShader;
+    GLuint forwardClipping;
 
     GLuint texturedMeshProgram_uTexture;
     
@@ -111,6 +139,9 @@ struct App
     std::vector<Entity> entities;
     std::vector<Light> lights;
 
+    //Entity water;
+    glm::mat4 WaterWorldMatrix;
+
     GLuint globalParamsOffset;
     GLuint globalParamsSize;
 
@@ -118,6 +149,11 @@ struct App
     GLuint colorAttachmentHandle;
 
     FrameBuffer deferredFrameBuffer;
+    WaterBuffer watterBuffers;
+
+    GLuint waterVAO = 0;
+    GLuint waterVBO = 0;
+    GLuint waterEBO = 0;
 };
 
 void Init(App* app);
