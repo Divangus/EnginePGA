@@ -315,6 +315,28 @@ void Gui(App* app)
         ImGui::EndCombo();
     }
 
+    if (app->mode == Mode::Mode_Forward)
+    {
+        if (app->waterBuffers.GetReflectionTexture() != 0)
+        {
+            ImGui::Image((ImTextureID)app->waterBuffers.GetReflectionTexture(), ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
+        }
+        else
+        {
+            ELOG("WATER REFLECTION TEXTURE NOT LOADED");
+        }
+
+        ImGui::Text("Water Refraction FrameBuffer");
+        if (app->waterBuffers.GetRefractionTexture() != 0)
+        {
+            ImGui::Image((ImTextureID)app->waterBuffers.GetRefractionTexture(), ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
+        }
+        else
+        {
+            ELOG("WATER REFRACTION TEXTURE NOT LOADED");
+        }
+    }
+
     if (app->mode == Mode::Mode_Deferred)
     {
         for (size_t i = 0; i < app->deferredFrameBuffer.colorAttachment.size(); i++)
@@ -359,25 +381,71 @@ void Render(App* app)
     case Mode_Forward:
     {
 
-        app->UpdateEntityBuffer(true);
+        //app->UpdateEntityBuffer(true);
+
+        /////////////////////////////////////////////////////////////////////////////////////////// Water Reflection FBO
+
+        glEnable(GL_CLIP_DISTANCE0);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, app->waterBuffers.fboReflection.fbHandle);
+        GLuint reflectionBuffers[] = { app->waterBuffers.fboReflection.fbHandle };
+        glDrawBuffers(app->waterBuffers.fboReflection.colorAttachment.size(), reflectionBuffers);
+
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Mover cámara para reflexión
+        float distance = 2 * (app->sceneCam.cameraPos.y - app->GetHeight(app->WaterWorldMatrix));
+        app->sceneCam.cameraPos.y -= distance;
+        app->sceneCam.pitch = -app->sceneCam.pitch;
+
+        const Program& ForwardProgram = app->programs[app->renderToBackBufferShader];
+        glUseProgram(ForwardProgram.handle);
+        app->UpdateEntityBuffer(false);
+        app->RenderGeometry(ForwardProgram, vec4(0, 1, 0, -app->GetHeight(app->WaterWorldMatrix)));
+
+        // Regresar cámara a posición original
+        app->sceneCam.cameraPos.y += distance;
+        app->sceneCam.pitch = -app->sceneCam.pitch;
+
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_CLIP_DISTANCE0); // Desactivar después de usar
+
+        /////////////////////////////////////////////////////////////////////////////////////////// Water Refraction FBO
+
+        glEnable(GL_CLIP_DISTANCE0);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, app->waterBuffers.fboRefraction.fbHandle);
+        GLuint refractionBuffers[] = { app->waterBuffers.fboRefraction.fbHandle };
+        glDrawBuffers(app->waterBuffers.fboRefraction.colorAttachment.size(), refractionBuffers);
+
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        app->UpdateEntityBuffer(false);
+        app->RenderGeometry(ForwardProgram, vec4(0, -1, 0, app->GetHeight(app->WaterWorldMatrix)));
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_CLIP_DISTANCE0); // Desactivar después de usar
+
+        /////////////////////////////////////////////////////////////////////////////////////////// Forward
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glViewport(0, 0, app->displaySize.x, app->displaySize.y);
-
-        const Program& ForwardProgram = app->programs[app->renderToBackBufferShader];
-        glUseProgram(ForwardProgram.handle);
-
+        app->UpdateEntityBuffer(true);
         app->RenderGeometry(ForwardProgram, vec4(0, -1, 0, 15));
+        glUseProgram(0);
 
         const Program& FwClipp = app->programs[app->waterShader];
         glUseProgram(FwClipp.handle);
         app->UpdateEntityBuffer(false);
         app->RenderWater(FwClipp);
 
-
+        glUseProgram(FwClipp.handle);
     }
     break;
     case Mode_Deferred:

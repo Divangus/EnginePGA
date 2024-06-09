@@ -26,7 +26,7 @@ uniform sampler2D reflectionTexture;
 uniform sampler2D refractionTexture;
 
 void main()
-{
+{ 
     vec2 ndc = (clipSpace.xy/clipSpace.w) / 2.0 + 0.5;
     vec2 reflectTexCoords = vec2(ndc.x, 1.0 -ndc.y);
     vec2 refractTexCoords = vec2(ndc.x, ndc.y);
