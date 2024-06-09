@@ -183,10 +183,24 @@ struct Camera
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
+    glm::vec3 cameraRight = glm::vec3(0.0f, 0.0f, 0.0f);
+
     glm::mat4 viewMatrix = glm::mat4();
 
     float yaw;
     float pitch;
+
+    void Update()
+    {
+        glm::vec3 direction;
+        direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        direction.y = sin(glm::radians(pitch));
+        direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        cameraFront = glm::normalize(direction);
+
+        cameraRight = glm::normalize(cross(cameraFront, vec3(0.0, 1.0, 0.0)));
+        cameraUp = glm::normalize(cross(cameraRight, cameraFront));
+    }
 };
 
 struct Entity 
@@ -247,7 +261,6 @@ struct WaterBuffer
 
     FrameBuffer fboReflection;
     FrameBuffer fboRefraction;
-
 
     GLuint GetReflectionTexture()
     {

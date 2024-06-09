@@ -107,6 +107,10 @@ struct App
     //float yaw;
     //float pitch;
 
+    float moveFactor = 0;
+
+    u32 dudvMap;
+
     Camera sceneCam;
 
     glm::mat4 projection;

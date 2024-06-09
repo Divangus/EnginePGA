@@ -325,9 +325,12 @@ void Init(App* app)
     u32 GroundModelIndex = ModelLoader::LoadModel(app, "Patrick/Ground.obj");
     u32 ShrekModelIndex = ModelLoader::LoadModel(app, "Patrick/Shrek.obj");
     u32 LuffyModelIndex = ModelLoader::LoadModel(app, "Patrick/Luffy.obj");
+    u32 SceneBeach = ModelLoader::LoadModel(app, "Patrick/intentodosbosque.obj");
 
     app->CubeModelIndex = ModelLoader::LoadModel(app, "Patrick/cube.obj");
     app->SphereModelIndex = ModelLoader::LoadModel(app, "Patrick/sphere.obj");
+
+    app->dudvMap = ModelLoader::LoadTexture2D(app, "dudvMap.png");
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
@@ -339,16 +342,17 @@ void Init(App* app)
 
     app->localUniformBuffer = CreateConstantBuffer(app->maxUniformBufferSize);
 
-    app->entities.push_back({ TransformPositionScale(vec3(0.0, 0.0, -4.0), vec3(1.0, 1.0, 1.0)),PatrickModelIndex,0,0 });
-    app->entities.push_back({ TransformPositionScale(vec3(-4.0, 0.0, -5.0), vec3(1.0, 1.0, 1.0)),PatrickModelIndex,0,0 });
-    app->entities.push_back({ TransformPositionScale(vec3(4.0, 0.0, -3.0), vec3(1.0, 1.0, 1.0)),PatrickModelIndex,0,0 });
-    
-    //app->entities.push_back({ TransformPositionScale(vec3(0.0, -4.0, 0.0), vec3(1.0, 1.0, 1.0)), GroundModelIndex, 0, 0 });
+    app->entities.push_back({ TransformPositionScale(vec3(0.0, 0.0, 1.0), vec3(0.1, 0.1, 0.1)),PatrickModelIndex,0,0 });
+    app->entities.push_back({ TransformPositionScale(vec3(0.0, 0.0, 3.0), vec3(0.1, 0.1, 0.1)),PatrickModelIndex,0,0 });
+    app->entities.push_back({ TransformPositionScale(vec3(0.5, 0.4, -0.2), vec3(0.1, 0.1, 0.1)),PatrickModelIndex,0,0 });
 
-    app->entities.push_back({ TransformPositionScale(vec3(-5.0, -4.0, 5.0), vec3(2.0, 2.0, 2.0)), ShrekModelIndex, 0, 0 });
-    app->entities.push_back({ TransformPositionScale(vec3(6.0, -4.0, 5.0), vec3(0.03, 0.03, 0.03)), LuffyModelIndex, 0, 0 });
 
-    app->WaterWorldMatrix = TransformPositionScale(vec3(0.0, -2.0, 0.0), vec3(20.0, 20.0, 20.0));
+    app->entities.push_back({ TransformPositionScale(vec3(-5.0, -1.8, -2.0), vec3(1.0, 1.0, 1.0)), ShrekModelIndex, 0, 0 });
+    app->entities.push_back({ TransformPositionScale(vec3(-1.0, -3.0, 3.0), vec3(0.01, 0.01, 0.01)), LuffyModelIndex, 0, 0 });
+
+    app->entities.push_back({ TransformPositionScale(vec3(0.0, 0.0, 0.0), vec3(2.0, 2.0, 2.0)), SceneBeach, 0, 0 });
+
+    app->WaterWorldMatrix = TransformPositionScale(vec3(0.0, -0.5, 0.0), vec3(20.0, 20.0, 20.0));
     app->WaterWorldMatrix = glm::rotate(app->WaterWorldMatrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
     app->CreateDirectLight(vec3(1.0, 1.0, 1.0), vec3(1.0, -1.0, 1.0), vec3(5.0, -3.0, 0.0));
@@ -496,7 +500,7 @@ void Render(App* app)
         // Regresar cámara a posición original
         app->sceneCam.cameraPos.y += distance;
         app->sceneCam.pitch = -app->sceneCam.pitch;
-
+        app->sceneCam.Update();
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_CLIP_DISTANCE0); // Desactivar después de usar
@@ -559,11 +563,28 @@ void Render(App* app)
         float distance = 2 * (app->sceneCam.cameraPos.y - app->GetHeight(app->WaterWorldMatrix));
         app->sceneCam.cameraPos.y -= distance;
         app->sceneCam.pitch = -app->sceneCam.pitch;
+        //app->sceneCam.Update();
 
         const Program& DeferredProgram = app->programs[app->renderToFrameBufferShader];
         glUseProgram(DeferredProgram.handle);
-        app->UpdateEntityBuffer(false);
+        app->UpdateEntityBuffer(true);
         app->RenderGeometry(DeferredProgram, vec4(0, 1, 0, -app->GetHeight(app->WaterWorldMatrix)));
+
+
+        //skybox
+        const Program& SFStoVS = app->programs[app->skyboxFragmentShaderToVertexShader];
+        glUseProgram(SFStoVS.handle);
+
+        GLint projectionLoc = glGetUniformLocation(SFStoVS.handle, "projection");
+        GLint viewLoc = glGetUniformLocation(SFStoVS.handle, "view");
+
+
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(app->projection));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(app->view));
+        glBindVertexArray(app->vaoSkybox);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, app->cubemapTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
 
         // Regresar cámara a posición original
         app->sceneCam.cameraPos.y += distance;
@@ -588,6 +609,17 @@ void Render(App* app)
         app->UpdateEntityBuffer(false);
         app->RenderGeometry(DeferredProgram, vec4(0, -1, 0, app->GetHeight(app->WaterWorldMatrix)));
 
+        //skybox
+        glUseProgram(SFStoVS.handle);
+
+
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(app->projection));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(app->view));
+        glBindVertexArray(app->vaoSkybox);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, app->cubemapTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
+
         glUseProgram(0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_CLIP_DISTANCE0); // Desactivar después de usar
@@ -606,6 +638,16 @@ void Render(App* app)
         app->UpdateEntityBuffer(true);
         app->RenderGeometry(DeferredProgram, vec4(0, -1, 0, 3));
 
+        //skybox
+        glUseProgram(SFStoVS.handle);
+
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(app->projection));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(app->view));
+        glBindVertexArray(app->vaoSkybox);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, app->cubemapTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
+
         glUseProgram(0);
         const Program& FwClipp = app->programs[app->waterShader];
         glUseProgram(FwClipp.handle);
@@ -614,20 +656,6 @@ void Render(App* app)
 
         glUseProgram(0);
         /////////////////////////////////////////////////////////////////////////////////////////// 
-        //skybox
-        const Program& SFStoVS = app->programs[app->skyboxFragmentShaderToVertexShader];
-        glUseProgram(SFStoVS.handle);
-        
-        GLint projectionLoc = glGetUniformLocation(SFStoVS.handle, "projection");
-        GLint viewLoc = glGetUniformLocation(SFStoVS.handle, "view");
-        
-       
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(app->projection));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(app->view));        
-        glBindVertexArray(app->vaoSkybox);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, app->cubemapTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthMask(GL_TRUE);
         /////////////////////////////////////////////////////////////////////////////////////////// 
         //HDR
         
@@ -695,6 +723,8 @@ void App::UpdateEntityBuffer(bool mouse)
 
     if(mouse) processInput(glfwGetCurrentContext());
 
+    sceneCam.Update();
+
     view = glm::lookAt(sceneCam.cameraPos, sceneCam.cameraPos + sceneCam.cameraFront, sceneCam.cameraUp);
 
     u32 cont = 0;
@@ -753,23 +783,39 @@ void App::RenderWater(const Program& aBindedProgram)
 
     GLuint reflectTexLoc = glGetUniformLocation(aBindedProgram.handle, "reflectionTexture");
     GLuint refractTexLoc = glGetUniformLocation(aBindedProgram.handle, "refractionTexture");
+    GLuint dudvMapLoc = glGetUniformLocation(aBindedProgram.handle, "dudvMap");
+
+    GLuint moveFactorLoc = glGetUniformLocation(aBindedProgram.handle, "moveFactor");
+
+    if (moveFactor < 1)
+    {
+        moveFactor += 0.02 * deltaTime;
+    }
+    else
+    {
+        moveFactor = 0;
+    }
+
+    glUniform1f(moveFactorLoc, moveFactor);
 
     //Attach Textures
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, waterBuffers.GetReflectionTexture());
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, waterBuffers.GetRefractionTexture());
+    glActiveTexture(GL_TEXTURE2);
+    GLuint textureHandle = textures[dudvMap].handle;
+    glBindTexture(GL_TEXTURE_2D, textureHandle);
 
     glUniform1i(reflectTexLoc, 0);
     glUniform1i(refractTexLoc, 1);
+    glUniform1i(dudvMapLoc, 2);
 
-    // Enlaza el VAO del agua
+
     glBindVertexArray(waterVAO);
 
-    // Dibuja los elementos (triángulos)
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-    // Desenlaza el VAO
     glBindVertexArray(0);
 }
 

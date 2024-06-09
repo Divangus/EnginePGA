@@ -55,7 +55,7 @@ void OnGlfwMouseMoveEvent(GLFWwindow* window, double xpos, double ypos)
     app->input.mouseDelta.y *= sensitivity;
 
     app->sceneCam.yaw += app->input.mouseDelta.x;
-    app->sceneCam.pitch += app->input.mouseDelta.y;
+    app->sceneCam.pitch -= app->input.mouseDelta.y;
 
     if (app->sceneCam.pitch > 89.0f)
         app->sceneCam.pitch = 89.0f;
@@ -131,7 +131,10 @@ void OnGlfwResizeFramebuffer(GLFWwindow* window, int width, int height)
     App* app = (App*)glfwGetWindowUserPointer(window);
     app->displaySize = vec2(width, height);
 
+    app->ConfigureWaterBuffer(app->waterBuffers.fboReflection, app->waterBuffers.rtReflection, app->waterBuffers.rtReflectionDepth);
+    app->ConfigureWaterBuffer(app->waterBuffers.fboRefraction, app->waterBuffers.rtRefraction, app->waterBuffers.rtRefractionDepth);
     app->ConfigureFrameBuffer(app->deferredFrameBuffer);
+
 }
 
 void OnGlfwCloseWindow(GLFWwindow* window)
