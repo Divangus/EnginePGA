@@ -52,7 +52,7 @@ struct App
 
     //void ConfigFrameBuffer(FrameBuffer& frameBuffer, GLuint& colorAttachment, GLuint& depthHandle);
     
-    void ConfigureWaterBuffer(FrameBuffer& aConfigFB);
+    void ConfigureWaterBuffer(FrameBuffer& aConfigFB, GLuint& colorAttach, GLuint& depth);
 
     float GetHeight(glm::mat4 transformMat);
 
@@ -106,7 +106,7 @@ struct App
     GLuint renderToBackBufferShader;
     GLuint renderToFrameBufferShader;
     GLuint framebufferToQuadShader;
-    GLuint forwardClipping;
+    GLuint waterShader;
 
     GLuint texturedMeshProgram_uTexture;
     
@@ -149,7 +149,7 @@ struct App
     GLuint colorAttachmentHandle;
 
     FrameBuffer deferredFrameBuffer;
-    WaterBuffer watterBuffers;
+    WaterBuffer waterBuffers;
 
     GLuint waterVAO = 0;
     GLuint waterVBO = 0;

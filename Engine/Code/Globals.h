@@ -247,6 +247,30 @@ struct WaterBuffer
 
     FrameBuffer fboReflection;
     FrameBuffer fboRefraction;
+
+    GLuint GetReflectionTexture()
+    {
+        for (int i = 0; i < fboReflection.colorAttachment.size(); i++)
+        {
+            if (fboReflection.colorAttachment[i] == rtReflection)
+            {
+                return fboReflection.colorAttachment[i];
+            }
+        }
+        return 0;
+    }
+
+    GLuint GetRefractionTexture()
+    {
+        for (int i = 0; i < fboRefraction.colorAttachment.size(); i++)
+        {
+            if (fboRefraction.colorAttachment[i] == rtRefraction)
+            {
+                return fboRefraction.colorAttachment[i];
+            }
+        }
+        return 0;
+    }
 };
 
 #define ILOG(...)                 \

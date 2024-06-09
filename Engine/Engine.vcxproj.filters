@@ -121,7 +121,7 @@
     <None Include="WorkingDir\FB_TO_BB.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="WorkingDir\FORWARD_CLIPPING.glsl">
+    <None Include="WorkingDir\WATER_SHADER.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

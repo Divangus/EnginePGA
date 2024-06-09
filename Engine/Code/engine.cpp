@@ -230,7 +230,7 @@ void Init(App* app)
     app->renderToBackBufferShader = LoadProgram(app, "RENDER_TO_BB.glsl", "RENDER_TO_BB");
     app->renderToFrameBufferShader = LoadProgram(app, "RENDER_TO_FB.glsl", "RENDER_TO_FB");
     app->framebufferToQuadShader = LoadProgram(app, "FB_TO_BB.glsl", "FB_TO_BB");
-    app->forwardClipping = LoadProgram(app, "FORWARD_CLIPPING.glsl", "FORWARD_CLIPPING");
+    app->waterShader = LoadProgram(app, "WATER_SHADER.glsl", "WATER_SHADER");
 
     const Program& texturedMeshProgram = app->programs[app->renderToFrameBufferShader];
     app->texturedMeshProgram_uTexture = glGetUniformLocation(texturedMeshProgram.handle, "uTexture");
@@ -272,8 +272,8 @@ void Init(App* app)
     app->CreatePointLight(vec3(0.0, 0.0, 1.0), vec3(1.0, 1.0, 1.0), vec3(4.0, -3.0, 6.0));
 
     //
-    app->ConfigureWaterBuffer(app->watterBuffers.fboReflection);
-    app->ConfigureWaterBuffer(app->watterBuffers.fboRefraction);
+    app->ConfigureWaterBuffer(app->waterBuffers.fboReflection, app->waterBuffers.rtReflection, app->waterBuffers.rtReflectionDepth);
+    app->ConfigureWaterBuffer(app->waterBuffers.fboRefraction, app->waterBuffers.rtRefraction, app->waterBuffers.rtRefractionDepth);
     app->ConfigureFrameBuffer(app->deferredFrameBuffer);
 
     app->mode = Mode_Deferred;
@@ -321,14 +321,24 @@ void Gui(App* app)
             ImGui::Image((ImTextureID)app->deferredFrameBuffer.colorAttachment[i], ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
         }
         ImGui::Text("Water Reflection FrameBuffer");
-        for (size_t i = 0; i < app->watterBuffers.fboReflection.colorAttachment.size(); i++)
+        
+        if (app->waterBuffers.GetReflectionTexture() != 0)
         {
-            ImGui::Image((ImTextureID)app->watterBuffers.fboReflection.colorAttachment[i], ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image((ImTextureID)app->waterBuffers.GetReflectionTexture(), ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
         }
-        ImGui::Text("Water Refraction FrameBuffer");
-        for (size_t i = 0; i < app->watterBuffers.fboRefraction.colorAttachment.size(); i++)
+        else
         {
-            ImGui::Image((ImTextureID)app->watterBuffers.fboRefraction.colorAttachment[i], ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
+            ELOG("WATER REFLECTION TEXTURE NOT LOADED");
+        }
+
+        ImGui::Text("Water Refraction FrameBuffer");
+        if (app->waterBuffers.GetRefractionTexture() != 0)
+        {
+            ImGui::Image((ImTextureID)app->waterBuffers.GetRefractionTexture(), ImVec2(250, 150), ImVec2(0, 1), ImVec2(1, 0));
+        }
+        else
+        {
+            ELOG("WATER REFRACTION TEXTURE NOT LOADED");
         }
     }    
     ImGui::End();
@@ -375,9 +385,9 @@ void Render(App* app)
 
         glEnable(GL_CLIP_DISTANCE0);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, app->watterBuffers.fboReflection.fbHandle);
-        GLuint reflectionBuffers[] = { app->watterBuffers.fboReflection.fbHandle };
-        glDrawBuffers(app->watterBuffers.fboReflection.colorAttachment.size(), reflectionBuffers);
+        glBindFramebuffer(GL_FRAMEBUFFER, app->waterBuffers.fboReflection.fbHandle);
+        GLuint reflectionBuffers[] = { app->waterBuffers.fboReflection.fbHandle };
+        glDrawBuffers(app->waterBuffers.fboReflection.colorAttachment.size(), reflectionBuffers);
 
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -401,9 +411,9 @@ void Render(App* app)
 
         /////////////////////////////////////////////////////////////////////////////////////////// Water Refraction FBO
 
-        glBindFramebuffer(GL_FRAMEBUFFER, app->watterBuffers.fboRefraction.fbHandle);
-        GLuint refractionBuffers[] = { app->watterBuffers.fboRefraction.fbHandle };
-        glDrawBuffers(app->watterBuffers.fboRefraction.colorAttachment.size(), refractionBuffers);
+        glBindFramebuffer(GL_FRAMEBUFFER, app->waterBuffers.fboRefraction.fbHandle);
+        GLuint refractionBuffers[] = { app->waterBuffers.fboRefraction.fbHandle };
+        glDrawBuffers(app->waterBuffers.fboRefraction.colorAttachment.size(), refractionBuffers);
 
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -432,7 +442,7 @@ void Render(App* app)
 
         glUseProgram(0);
 
-        const Program& FwClipp = app->programs[app->forwardClipping];
+        const Program& FwClipp = app->programs[app->waterShader];
         glUseProgram(FwClipp.handle);
         app->RenderWater(FwClipp);
 
@@ -534,7 +544,7 @@ void App::UpdateEntityBuffer(bool mouse)
 
 void App::RenderWater(const Program& aBindedProgram)
 {   
-
+    
     // Obtén las ubicaciones de las variables uniformes en el shader
     GLuint viewLoc = glGetUniformLocation(aBindedProgram.handle, "viewMatrix");
     GLuint projLoc = glGetUniformLocation(aBindedProgram.handle, "projectionMatrix");
@@ -544,6 +554,18 @@ void App::RenderWater(const Program& aBindedProgram)
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, &projection[0][0]);
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &WaterWorldMatrix[0][0]);
+
+    GLuint reflectTexLoc = glGetUniformLocation(aBindedProgram.handle, "reflectionTexture");
+    GLuint refractTexLoc = glGetUniformLocation(aBindedProgram.handle, "refractionTexture");
+
+    //Attach Textures
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, waterBuffers.GetReflectionTexture());
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, waterBuffers.GetRefractionTexture());
+
+    glUniform1i(reflectTexLoc, 0);
+    glUniform1i(refractTexLoc, 1);
 
     // Enlaza el VAO del agua
     glBindVertexArray(waterVAO);
@@ -598,11 +620,13 @@ void App::ConfigureFrameBuffer(FrameBuffer& aConfigFB)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void App::ConfigureWaterBuffer(FrameBuffer& aConfigFB)
+void App::ConfigureWaterBuffer(FrameBuffer& aConfigFB, GLuint& colorAttach, GLuint& depth)
 {
     aConfigFB.Clear();
 
-    aConfigFB.colorAttachment.push_back(CreateTexture());
+    colorAttach = CreateTexture();
+
+    aConfigFB.colorAttachment.push_back(colorAttach);
 
     glGenTextures(1, &aConfigFB.depthHandle);
     glBindTexture(GL_TEXTURE_2D, aConfigFB.depthHandle);
@@ -613,6 +637,8 @@ void App::ConfigureWaterBuffer(FrameBuffer& aConfigFB)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    depth = aConfigFB.depthHandle;
 
     glGenFramebuffers(1, &aConfigFB.fbHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, aConfigFB.fbHandle);
@@ -714,10 +740,10 @@ void App::LoadWaterVAO()
     // Suponiendo que tienes los datos de los vértices y los índices definidos
     float waterVertices[] = {
         // posiciones de los vértices
-        -0.5f, 0.0f, -0.5f,
-         0.5f, 0.0f, -0.5f,
-         0.5f, 0.0f,  0.5f,
-        -0.5f, 0.0f,  0.5f
+        -0.5f, 0.0f, -0.5f, 0.0f, 0.0f, //0
+         0.5f, 0.0f, -0.5f, 1.0f, 0.0f, //1
+         0.5f, 0.0f,  0.5f, 1.0f, 1.0f, //2
+        -0.5f, 0.0f,  0.5f, 0.0f, 1.0f  //3
     };
 
     unsigned int waterIndices[] = {
@@ -734,11 +760,17 @@ void App::LoadWaterVAO()
     glBindBuffer(GL_ARRAY_BUFFER, waterVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(waterVertices), waterVertices, GL_STATIC_DRAW);
 
+    //vertex position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    //vertex position
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    //indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, waterEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(waterIndices), waterIndices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
 
     glBindVertexArray(0);
 }

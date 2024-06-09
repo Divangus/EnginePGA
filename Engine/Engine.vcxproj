@@ -53,10 +53,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="WorkingDir\FB_TO_BB.glsl" />
-    <None Include="WorkingDir\FORWARD_CLIPPING.glsl" />
     <None Include="WorkingDir\RENDER_TO_BB.glsl" />
     <None Include="WorkingDir\RENDER_TO_FB.glsl" />
     <None Include="WorkingDir\shaders.glsl" />
+    <None Include="WorkingDir\WATER_SHADER.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
