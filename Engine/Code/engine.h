@@ -64,6 +64,37 @@ struct App
 
     const GLuint CreateTexture(const bool isFloatingPoint = false);
 
+
+    
+    // ---------------------------------------------------------------------------------------
+    //Skybox Func
+    unsigned int loadCubemapTextures(std::vector<std::string> faces);
+
+    std::vector<std::string> faces
+    {
+            "SkyboxTextures/posx.jpg",
+            "SkyboxTextures/negx.jpg",
+            "SkyboxTextures/posy.jpg",//top
+            "SkyboxTextures/negy.jpg",//bot
+            "SkyboxTextures/posz.jpg",
+            "SkyboxTextures/negz.jpg"
+    };
+    unsigned int envCubemap;
+    //skybox ID
+    GLuint cubemapTexture;
+    //hdr Func
+    void loadhdr();
+    void EquirrectangularToCubeMap();
+    void renderCube();
+    float* hdrData;
+    unsigned int captureFBO, captureRBO;
+    unsigned int hdrTexture;
+    unsigned int cubeVAO = 0;
+    unsigned int cubeVBO = 0;
+
+    //char filename[] = "dwa";
+    // ---------------------------------------------------------------------------------------
+
     //models
     u32 CubeModelIndex;
     u32 SphereModelIndex;
@@ -110,6 +141,11 @@ struct App
 
     GLuint texturedMeshProgram_uTexture;
     
+    //program Skybox and hdr
+    GLuint skyboxFragmentShaderToVertexShader;
+   // GLuint equirrectangularToCubeMap;
+   // GLuint backgroundShader;
+
     // texture indices
     u32 diceTexIdx;
     u32 whiteTexIdx;
@@ -154,6 +190,9 @@ struct App
     GLuint waterVAO = 0;
     GLuint waterVBO = 0;
     GLuint waterEBO = 0;
+    //Skybox vao vbo
+    GLuint vaoSkybox = 0;
+    GLuint vboSkybox = 0;
 };
 
 void Init(App* app);

@@ -11,6 +11,51 @@
 #include <stb_image_write.h>
 #include "Globals.h"
 
+float skyboxVertices[] = {
+    // positions          
+  -90.0f,  90.0f, -90.0f,
+  -90.0f, -90.0f, -90.0f,
+   90.0f, -90.0f, -90.0f,
+   90.0f, -90.0f, -90.0f,
+   90.0f,  90.0f, -90.0f,
+  -90.0f,  90.0f, -90.0f,
+
+  -90.0f, -90.0f,  90.0f,
+  -90.0f, -90.0f, -90.0f,
+  -90.0f,  90.0f, -90.0f,
+  -90.0f,  90.0f, -90.0f,
+  -90.0f,  90.0f,  90.0f,
+  -90.0f, -90.0f,  90.0f,
+
+   90.0f, -90.0f, -90.0f,
+   90.0f, -90.0f,  90.0f,
+   90.0f,  90.0f,  90.0f,
+   90.0f,  90.0f,  90.0f,
+   90.0f,  90.0f, -90.0f,
+   90.0f, -90.0f, -90.0f,
+
+  -90.0f, -90.0f,  90.0f,
+  -90.0f,  90.0f,  90.0f,
+   90.0f,  90.0f,  90.0f,
+   90.0f,  90.0f,  90.0f,
+   90.0f, -90.0f,  90.0f,
+  -90.0f, -90.0f,  90.0f,
+
+  -90.0f,  90.0f, -90.0f,
+   90.0f,  90.0f, -90.0f,
+   90.0f,  90.0f,  90.0f,
+   90.0f,  90.0f,  90.0f,
+  -90.0f,  90.0f,  90.0f,
+  -90.0f,  90.0f, -90.0f,
+
+  -90.0f, -90.0f, -90.0f,
+  -90.0f, -90.0f,  90.0f,
+   90.0f, -90.0f, -90.0f,
+   90.0f, -90.0f, -90.0f,
+  -90.0f, -90.0f,  90.0f,
+   90.0f, -90.0f,  90.0f
+};
+
 GLuint CreateProgramFromSource(String programSource, const char* shaderName)
 {
     GLchar  infoLogBuffer[1024] = {};
@@ -224,12 +269,53 @@ void Init(App* app)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
     glBindVertexArray(0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    //vbo (skybox)
+
+    glGenBuffers(1, &app->vboSkybox);
+    glBindBuffer(GL_ARRAY_BUFFER, app->vboSkybox);
+    glBufferData(GL_ARRAY_BUFFER, 3 * 36 * sizeof(float), &skyboxVertices, GL_STATIC_DRAW);
+
+    //vao (skybox)
+  
+    glGenVertexArrays(1, &app->vaoSkybox);
+    glBindVertexArray(app->vaoSkybox);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, app->vboSkybox);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    //equirectangular to cubemap (hdr)
+
+ 
+   // glGenFramebuffers(1, &app->captureFBO);
+   // glGenRenderbuffers(1, &app->captureRBO);
+   //
+   // glBindFramebuffer(GL_FRAMEBUFFER, app->captureFBO);
+   // glBindRenderbuffer(GL_RENDERBUFFER, app->captureRBO);
+   // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+   // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, app->captureRBO);
+
+   
+
+    //load CubeMapTexture
+    app->cubemapTexture = app->loadCubemapTextures(app->faces);
+    
+    //load HDR document
+    //app->loadhdr();
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     app->LoadWaterVAO();
 
     app->renderToBackBufferShader = LoadProgram(app, "RENDER_TO_BB.glsl", "RENDER_TO_BB");
     app->renderToFrameBufferShader = LoadProgram(app, "RENDER_TO_FB.glsl", "RENDER_TO_FB");
     app->framebufferToQuadShader = LoadProgram(app, "FB_TO_BB.glsl", "FB_TO_BB");
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //Skybox Shaders Load
+    app->skyboxFragmentShaderToVertexShader = LoadProgram(app, "SkyboxFragmentShader.glsl", "SFS");
+    //app->equirrectangularToCubeMap = LoadProgram(app, "EquirectangularShader.glsl", "ESH");
+    //app->backgroundShader = LoadProgram(app, "BackGroundShader.glsl", "BKSH");
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     app->waterShader = LoadProgram(app, "WATER_SHADER.glsl", "WATER_SHADER");
 
     const Program& texturedMeshProgram = app->programs[app->renderToFrameBufferShader];
@@ -276,7 +362,10 @@ void Init(App* app)
     app->ConfigureWaterBuffer(app->waterBuffers.fboReflection, app->waterBuffers.rtReflection, app->waterBuffers.rtReflectionDepth);
     app->ConfigureWaterBuffer(app->waterBuffers.fboRefraction, app->waterBuffers.rtRefraction, app->waterBuffers.rtRefractionDepth);
     app->ConfigureFrameBuffer(app->deferredFrameBuffer);
-
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //hdr createCube
+    //app->EquirrectangularToCubeMap();
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     app->mode = Mode_Deferred;
     
 }
@@ -524,7 +613,36 @@ void Render(App* app)
         app->RenderWater(FwClipp);
 
         glUseProgram(0);
-
+        /////////////////////////////////////////////////////////////////////////////////////////// 
+        //skybox
+        const Program& SFStoVS = app->programs[app->skyboxFragmentShaderToVertexShader];
+        glUseProgram(SFStoVS.handle);
+        
+        GLint projectionLoc = glGetUniformLocation(SFStoVS.handle, "projection");
+        GLint viewLoc = glGetUniformLocation(SFStoVS.handle, "view");
+        
+       
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(app->projection));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(app->view));        
+        glBindVertexArray(app->vaoSkybox);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, app->cubemapTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
+        /////////////////////////////////////////////////////////////////////////////////////////// 
+        //HDR
+        
+        //const Program& backSh = app->programs[app->backgroundShader];
+        //glUseProgram(backSh.handle);
+        //glUniform1i(glGetUniformLocation(backSh.handle, "environmentMap"), 0);
+        ////backgroundShader.setInt("environmentMap", 0);
+        //GLint projectionLoc = glGetUniformLocation(backSh.handle, "projection");
+        //
+        //glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(app->projectionMatrix));
+        //GLint viewLoc = glGetUniformLocation(backSh.handle, "view");
+        //glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(app->viewMatrix));
+        //glActiveTexture(GL_TEXTURE0);
+        //glBindTexture(GL_TEXTURE_CUBE_MAP, app->envCubemap);
+        //app->renderCube();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         ///////////////////////////////////////////////////////////////////////////////////////////
@@ -857,5 +975,193 @@ float App::GetHeight(glm::mat4 transformMat)
 
     return D;
 }
+unsigned int App::loadCubemapTextures(std::vector<std::string> faces)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++)
+    {
+        unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
+            );
+            stbi_image_free(data);
+        }
+        else
+        {
+            //  cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+    return textureID;
+}
+
+//void App::loadhdr()
+//{
+//    stbi_set_flip_vertically_on_load(true);
+//    int width, height, nrComponents;
+//    float* data = stbi_loadf("hdr/lonely_road_afternoon_puresky_4k.hdr", &width, &height, &nrComponents, 0);
+//    ;
+//    if (data)
+//    {
+//        glGenTextures(1, &hdrTexture);
+//        glBindTexture(GL_TEXTURE_2D, hdrTexture);
+//        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
+//
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//
+//        stbi_image_free(data);
+//    }
+//    else
+//    {
+//        //  std::cout << "Failed to load HDR image." << std::endl;
+//    }
+//
+//    glGenTextures(1, &envCubemap);
+//    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+//    for (unsigned int i = 0; i < 6; ++i)
+//    {
+//        // note that we store each face with 16 bit floating point values
+//        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F,
+//            512, 512, 0, GL_RGB, GL_FLOAT, nullptr);
+//    }
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//
+//}
+
+//void App::EquirrectangularToCubeMap() {
+//
+//    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+//    glm::mat4 captureViews[] =
+//    {
+//       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+//       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+//       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+//       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+//       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+//       glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+//    };
+//
+//    // convert HDR equirectangular environment map to cubemap equivalent
+//    const Program& EQtoCM = programs[equirrectangularToCubeMap];
+//    glUseProgram(EQtoCM.handle);
+//
+//
+//    glUniform1i(glGetUniformLocation(EQtoCM.handle, "equirectangularMap"), 0);
+//    GLint projectionLoc = glGetUniformLocation(EQtoCM.handle, "projection");
+//    GLint viewLoc = glGetUniformLocation(EQtoCM.handle, "view");
+//
+//    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(captureProjection));
+//    //glUniformMatrix4fv(eMap, 1, GL_FALSE, glm::value_ptr(app->viewMatrix));
+//   //equirectangularToCubemapShader.setInt("equirectangularMap", 0);
+//    //equirectangularToCubemapShader.setMat4("projection", captureProjection);
+//
+//
+//    glActiveTexture(GL_TEXTURE0);
+//    glBindTexture(GL_TEXTURE_2D, hdrTexture);
+//
+//    glViewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
+//    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+//    for (unsigned int i = 0; i < 6; ++i)
+//    {
+//        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(captureViews[i]));
+//        //equirectangularToCubemapShader.setMat4("view", captureViews[i]);
+//        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+//            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
+//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//
+//        renderCube(); // renders a 1x1 cube
+//    }
+//    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//}
+
+//void App::renderCube()
+//{
+//    // initialize (if necessary)
+//    if (cubeVAO == 0)
+//    {
+//        float vertices[] = {
+//            // back face
+//            -0.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+//             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+//             1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+//             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+//            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+//            -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+//            // front face
+//            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+//             1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+//             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+//             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+//            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+//            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+//            // left face
+//            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+//            -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+//            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+//            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+//            -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+//            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+//            // right face
+//             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+//             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+//             1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
+//             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+//             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+//             1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
+//             // bottom face
+//             -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+//              1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+//              1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+//              1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+//             -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+//             -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+//             // top face
+//             -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+//              1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+//              1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
+//              1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+//             -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+//             -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+//        };
+//        glGenVertexArrays(1, &cubeVAO);
+//        glGenBuffers(1, &cubeVBO);
+//        // fill buffer
+//        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+//        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+//        // link vertex attributes
+//        glBindVertexArray(cubeVAO);
+//        glEnableVertexAttribArray(0);
+//        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+//        glEnableVertexAttribArray(1);
+//        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+//        glEnableVertexAttribArray(2);
+//        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+//        glBindBuffer(GL_ARRAY_BUFFER, 0);
+//        glBindVertexArray(0);
+//    }
+//    // render Cube
+//    glBindVertexArray(cubeVAO);
+//    glDrawArrays(GL_TRIANGLES, 0, 36);
+//    glBindVertexArray(0);
+//}
 
 

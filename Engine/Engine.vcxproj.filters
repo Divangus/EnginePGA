@@ -124,5 +124,14 @@
     <None Include="WorkingDir\WATER_SHADER.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="WorkingDir\BackGroundShader.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="WorkingDir\EquirectangularShader.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="WorkingDir\SkyboxFragmentShader.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
