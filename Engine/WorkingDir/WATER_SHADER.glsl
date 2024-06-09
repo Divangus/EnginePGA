@@ -3,9 +3,8 @@
 #if defined(VERTEX) ///////////////////////////////////////////////////
 
 layout(location = 0) in vec3 aPosition;
-layout(location = 1) in vec2 aTexCoords;
 
-out vec2 texCoords;
+out vec4 clipSpace;
 
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
@@ -13,13 +12,13 @@ uniform mat4 modelMatrix;
 
 void main()
 {
-    texCoords = aTexCoords;
-    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(aPosition, 1.0);
+    clipSpace = projectionMatrix * viewMatrix * modelMatrix * vec4(aPosition, 1.0);
+    gl_Position = clipSpace;
 }
 
 #elif defined(FRAGMENT) ///////////////////////////////////////////////
 
-in vec2 texCoords;
+in vec4 clipSpace;
 
 out vec4 fragColor;
 
@@ -28,13 +27,17 @@ uniform sampler2D refractionTexture;
 
 void main()
 {
-    vec4 reflectColor = texture(reflectionTexture, texCoords);
-    vec4 refractColor = texture(refractionTexture, texCoords);
+    vec2 ndc = (clipSpace.xy/clipSpace.w) / 2.0 + 0.5;
+    vec2 reflectTexCoords = vec2(ndc.x, 1.0 -ndc.y);
+    vec2 refractTexCoords = vec2(ndc.x, ndc.y);
 
-    fragColor = mix(reflectColor, refractColor, 0.5);
+    vec4 reflectColor = texture(reflectionTexture, reflectTexCoords);
+    vec4 refractColor = texture(refractionTexture, refractTexCoords);
 
-    //fragColor = vec4(0.0f, 0.0f, 1.0f, 1.0f);
+    //fragColor = mix(reflectColor, refractColor, 0.5);
 
+    fragColor = vec4(0.0f, 0.0f, 1.0f, 1.0f);
+   
 }
 
 #endif

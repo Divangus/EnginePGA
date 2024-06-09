@@ -43,7 +43,7 @@ void main()
 	vec4 worldPosition = uWorldMatrix * vec4(aPosition,1.0);
 
 	vPosition = vec3(uWorldMatrix * vec4(aPosition,1.0));
-	vNormal = vec3(uWorldMatrix * vec4(aNormal,0.0));
+	vNormal = normalize(vec3(uWorldMatrix * vec4(aNormal,0.0)));
 	vViewDir = uCameraPosition - vPosition;
 	float clippingScale = 1.0;
 

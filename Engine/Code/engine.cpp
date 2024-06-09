@@ -243,8 +243,9 @@ void Init(App* app)
     app->CubeModelIndex = ModelLoader::LoadModel(app, "Patrick/cube.obj");
     app->SphereModelIndex = ModelLoader::LoadModel(app, "Patrick/sphere.obj");
 
-
+    glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
     glEnable(GL_CULL_FACE);
 
     glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
@@ -371,12 +372,17 @@ void Render(App* app)
 
         app->RenderGeometry(ForwardProgram, vec4(0, -1, 0, 15));
 
+        const Program& FwClipp = app->programs[app->waterShader];
+        glUseProgram(FwClipp.handle);
+        app->UpdateEntityBuffer(false);
+        app->RenderWater(FwClipp);
+
 
     }
     break;
     case Mode_Deferred:
     {
-
+        // Limpieza inicial de buffers
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glViewport(0, 0, app->displaySize.x, app->displaySize.y);
@@ -392,7 +398,7 @@ void Render(App* app)
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //Move camera down water before rendering
+        // Mover cámara para reflexión
         float distance = 2 * (app->sceneCam.cameraPos.y - app->GetHeight(app->WaterWorldMatrix));
         app->sceneCam.cameraPos.y -= distance;
         app->sceneCam.pitch = -app->sceneCam.pitch;
@@ -402,14 +408,17 @@ void Render(App* app)
         app->UpdateEntityBuffer(false);
         app->RenderGeometry(DeferredProgram, vec4(0, 1, 0, -app->GetHeight(app->WaterWorldMatrix)));
 
-        //Return camero to original pos
+        // Regresar cámara a posición original
         app->sceneCam.cameraPos.y += distance;
         app->sceneCam.pitch = -app->sceneCam.pitch;
 
         glUseProgram(0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_CLIP_DISTANCE0); // Desactivar después de usar
 
         /////////////////////////////////////////////////////////////////////////////////////////// Water Refraction FBO
+
+        glEnable(GL_CLIP_DISTANCE0);
 
         glBindFramebuffer(GL_FRAMEBUFFER, app->waterBuffers.fboRefraction.fbHandle);
         GLuint refractionBuffers[] = { app->waterBuffers.fboRefraction.fbHandle };
@@ -424,10 +433,10 @@ void Render(App* app)
 
         glUseProgram(0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_CLIP_DISTANCE0); // Desactivar después de usar
 
         /////////////////////////////////////////////////////////////////////////////////////////// Deferred FBO
 
-        glDisable(GL_CLIP_DISTANCE0);
         glBindFramebuffer(GL_FRAMEBUFFER, app->deferredFrameBuffer.fbHandle);
 
         GLuint drawBuffers[] = { app->deferredFrameBuffer.fbHandle };
@@ -441,9 +450,9 @@ void Render(App* app)
         app->RenderGeometry(DeferredProgram, vec4(0, -1, 0, 3));
 
         glUseProgram(0);
-
         const Program& FwClipp = app->programs[app->waterShader];
         glUseProgram(FwClipp.handle);
+        app->UpdateEntityBuffer(false);
         app->RenderWater(FwClipp);
 
         glUseProgram(0);
@@ -484,6 +493,7 @@ void Render(App* app)
         glUseProgram(0);
     }
     break;
+
 
     default:;
     }
@@ -740,10 +750,10 @@ void App::LoadWaterVAO()
     // Suponiendo que tienes los datos de los vértices y los índices definidos
     float waterVertices[] = {
         // posiciones de los vértices
-        -0.5f, 0.0f, -0.5f, 0.0f, 0.0f, //0
-         0.5f, 0.0f, -0.5f, 1.0f, 0.0f, //1
-         0.5f, 0.0f,  0.5f, 1.0f, 1.0f, //2
-        -0.5f, 0.0f,  0.5f, 0.0f, 1.0f  //3
+        -0.5f, 0.0f, -0.5f, //0
+         0.5f, 0.0f, -0.5f, //1
+         0.5f, 0.0f,  0.5f, //2
+        -0.5f, 0.0f,  0.5f  //3
     };
 
     unsigned int waterIndices[] = {
@@ -761,12 +771,8 @@ void App::LoadWaterVAO()
     glBufferData(GL_ARRAY_BUFFER, sizeof(waterVertices), waterVertices, GL_STATIC_DRAW);
 
     //vertex position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-
-    //vertex position
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
 
     //indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, waterEBO);

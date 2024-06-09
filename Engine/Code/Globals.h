@@ -248,6 +248,7 @@ struct WaterBuffer
     FrameBuffer fboReflection;
     FrameBuffer fboRefraction;
 
+
     GLuint GetReflectionTexture()
     {
         for (int i = 0; i < fboReflection.colorAttachment.size(); i++)
